@@ -93,33 +93,46 @@ class RAGHelper {
         };
     }
 
-    // Generar respuesta con LLaMA usando RAG
+    // Generar respuesta con LLaMA usando RAG y chat API
     async generateResponse(channelId, userQuery, systemPrompt) {
         try {
             // Construir contexto con RAG
-            const { formattedContext, stats } = await this.buildContextWithRAG(channelId, userQuery);
-
-            // Construir prompt completo
-            const fullPrompt = `${systemPrompt}
-
-Historial de conversación relevante:
-${formattedContext}
-
-Usuario: ${userQuery}
-Mira:`;
+            const { messages: contextMessages, stats } = await this.buildContextWithRAG(channelId, userQuery);
 
             console.log(`[RAG] Using ${stats.totalUsed} messages (${stats.recentUsed} recent + ${stats.relevantUsed} relevant) from ${stats.totalInChannel} total`);
 
-            // Generar respuesta
-            const res = await axios.post(`${this.ollamaUrl}/api/generate`, {
+            // Construir mensajes para el chat API
+            const chatMessages = [
+                {
+                    role: 'system',
+                    content: systemPrompt
+                }
+            ];
+
+            // Agregar contexto histórico como mensajes del chat
+            for (const msg of contextMessages) {
+                chatMessages.push({
+                    role: msg.user_id === 'bot' ? 'assistant' : 'user',
+                    content: `${msg.username}: ${msg.content}`
+                });
+            }
+
+            // Agregar consulta actual del usuario
+            chatMessages.push({
+                role: 'user',
+                content: userQuery
+            });
+
+            // Generar respuesta usando chat API
+            const res = await axios.post(`${this.ollamaUrl}/api/chat`, {
                 model: 'llama3.2:3b',
-                prompt: fullPrompt,
+                messages: chatMessages,
                 stream: false
             }, {
                 timeout: 60000
             });
 
-            return res.data.response;
+            return res.data.message.content;
         } catch (error) {
             console.error('[RAG] Error generating response:', error.message);
             throw error;
