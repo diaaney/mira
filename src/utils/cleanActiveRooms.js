@@ -1,24 +1,18 @@
-const fs = require('fs');
-const path = require('path');
-
-const activeRoomsPath = path.join(__dirname, '../commands/server-configuration/voicemaster/data/activeRooms.json');
+const ActiveRooms = require('../database/activeRooms');
 
 module.exports = async (client) => {
-    if (!fs.existsSync(activeRoomsPath)) return;
+    const activeRooms = ActiveRooms.getAll();
+    const toDelete = [];
 
-    let activeRooms = JSON.parse(fs.readFileSync(activeRoomsPath, 'utf8'));
-    let updated = false;
-
-    for (const channelId of Object.keys(activeRooms)) {
-        const channel = await client.channels.fetch(channelId).catch(() => null);
+    for (const room of activeRooms) {
+        const channel = await client.channels.fetch(room.channel_id).catch(() => null);
         if (!channel) {
-            delete activeRooms[channelId];
-            updated = true;
+            toDelete.push(room.channel_id);
         }
     }
 
-    if (updated) {
-        fs.writeFileSync(activeRoomsPath, JSON.stringify(activeRooms, null, 2));
-        console.log('[VoiceMaster] Cleaned up invalid channels from activeRooms.json');
+    if (toDelete.length > 0) {
+        ActiveRooms.deleteMany(toDelete);
+        console.log(`[VoiceMaster] Cleaned up ${toDelete.length} invalid channels`);
     }
 };

@@ -1,6 +1,6 @@
-const prefix = '!'; // temporal
 const askLlama = require('../utils/askLlama');
 const ctx = require('../commands/miscellaneous/ai/llamaContext');
+const GuildConfig = require('../database/guildConfig');
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
@@ -29,7 +29,12 @@ module.exports = (client) => {
             return; // evita que también intente ejecutarlo como comando prefix
         }
 
-        // --- 🔹 COMANDOS PREFIX (!) ---
+        // --- 🔹 COMANDOS PREFIX ---
+        // Get guild-specific prefix (defaults to '!')
+        const prefix = message.guild
+            ? GuildConfig.getPrefix(message.guild.id)
+            : '!';
+
         if (!message.content.startsWith(prefix)) return;
 
         const args = message.content.slice(prefix.length).trim().split(/ +/);
