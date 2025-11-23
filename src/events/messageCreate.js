@@ -27,7 +27,15 @@ module.exports = (client) => {
             try {
                 // Usar RAG para obtener contexto relevante de TODO el historial
                 const reply = await ragHelper.generateResponse(channelId, userInput, systemPrompt);
-                await message.reply(reply.slice(0, 2000));
+                const sentMessage = await message.reply(reply.slice(0, 2000));
+
+                // Guardar la respuesta de Mira en la DB también
+                ragHelper.saveMessageWithEmbedding(
+                    channelId,
+                    client.user.id,
+                    'Mira',
+                    reply.slice(0, 2000)
+                ).catch(err => console.error('[RAG] Failed to save bot response:', err));
             } catch (err) {
                 console.error('[LLaMA error]', err);
                 await message.reply('❌ No pude responder eso ahora.');
