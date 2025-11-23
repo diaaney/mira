@@ -38,6 +38,23 @@ function initDatabase() {
 
         CREATE INDEX IF NOT EXISTS idx_llm_context_channel
             ON llm_context(channel_id, created_at DESC);
+
+        -- Tabla para guardar TODOS los mensajes del canal con embeddings
+        CREATE TABLE IF NOT EXISTS channel_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            content TEXT NOT NULL,
+            embedding TEXT,
+            created_at INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_channel_messages_channel
+            ON channel_messages(channel_id, created_at DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_channel_messages_user
+            ON channel_messages(user_id);
     `);
 
     console.log('[Database] Schema initialized successfully');
