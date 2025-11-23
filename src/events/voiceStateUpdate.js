@@ -1,8 +1,5 @@
-const fs = require('fs');
-const path = require('path');
-
-const configPath = path.join(__dirname, '..', 'commands', 'server-configuration', 'voicemaster', 'data', 'config.json');
-const activeRoomsPath = path.join(__dirname, '..', 'commands', 'server-configuration', 'voicemaster', 'data', 'activeRooms.json');
+const GuildConfig = require('../database/guildConfig');
+const ActiveRooms = require('../database/activeRooms');
 
 module.exports = (client) => {
     client.on('voiceStateUpdate', async (oldState, newState) => {
@@ -13,9 +10,7 @@ module.exports = (client) => {
         const guild = newState.guild;
         const joinedChannel = newState.channel;
 
-        if (!fs.existsSync(configPath)) return;
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        const guildConfig = config[guild.id];
+        const guildConfig = GuildConfig.getVoiceMasterConfig(guild.id);
         if (!guildConfig || !guildConfig.generator) return;
 
         const generatorId = guildConfig.generator;
@@ -42,23 +37,14 @@ module.exports = (client) => {
 
                 await user.voice.setChannel(newChannel);
 
-                // Guardar en activeRooms.json
-                let activeRooms = {};
-                if (fs.existsSync(activeRoomsPath)) {
-                    activeRooms = JSON.parse(fs.readFileSync(activeRoomsPath, 'utf8'));
-                }
-                activeRooms[newChannel.id] = {
-                    ownerId: user.id,
-                    createdAt: Date.now()
-                };
-                fs.writeFileSync(activeRoomsPath, JSON.stringify(activeRooms, null, 2));
+                // Save to database
+                ActiveRooms.create(newChannel.id, guild.id, user.id);
 
-                // Eliminar si se queda vacío
+                // Auto-delete when empty
                 const interval = setInterval(() => {
                     if (!newChannel.members.size) {
                         newChannel.delete().catch(() => {});
-                        delete activeRooms[newChannel.id];
-                        fs.writeFileSync(activeRoomsPath, JSON.stringify(activeRooms, null, 2));
+                        ActiveRooms.delete(newChannel.id);
                         clearInterval(interval);
                     }
                 }, 1000);

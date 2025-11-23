@@ -1,9 +1,8 @@
+const { Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { Collection } = require('discord.js');
 const embeds = require('../constants/embeds');
-
-const activeRoomsPath = path.join(__dirname, '../commands/server-configuration/voicemaster/data/activeRooms.json');
+const ActiveRooms = require('../database/activeRooms');
 
 // Cargar todos los botones desde components/buttons/
 const buttons = new Collection();
@@ -47,15 +46,7 @@ module.exports = (client) => {
                 });
             }
 
-            if (!fs.existsSync(activeRoomsPath)) {
-                return interaction.reply({
-                    embeds: [embeds.error('VoiceMaster is not configured properly.')],
-                    ephemeral: true
-                });
-            }
-
-            const activeRooms = JSON.parse(fs.readFileSync(activeRoomsPath, 'utf8'));
-            const room = activeRooms[userChannel.id];
+            const room = ActiveRooms.get(userChannel.id);
 
             // Los botones como 'claim', 'info' y 'activity' pueden ser usados por cualquiera
             const bypassOwnerCheck = ['vm_claim', 'vm_info', 'vm_activity'];
@@ -67,7 +58,7 @@ module.exports = (client) => {
                 });
             }
 
-            if (room && room.ownerId !== interaction.member.id && !bypassOwnerCheck.includes(interaction.customId)) {
+            if (room && room.owner_id !== interaction.member.id && !bypassOwnerCheck.includes(interaction.customId)) {
                 return interaction.reply({
                     embeds: [embeds.error('You are not the owner of this channel.')],
                     ephemeral: true
@@ -95,11 +86,7 @@ module.exports = (client) => {
                 });
             }
 
-            const activeRooms = fs.existsSync(activeRoomsPath)
-                ? JSON.parse(fs.readFileSync(activeRoomsPath, 'utf8'))
-                : {};
-
-            const room = activeRooms[userChannel.id];
+            const room = ActiveRooms.get(userChannel.id);
             const selected = interaction.values;
 
             if (interaction.customId === 'vm_disconnect_select') {
