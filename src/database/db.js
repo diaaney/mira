@@ -55,23 +55,6 @@ function initDatabase() {
 
         CREATE INDEX IF NOT EXISTS idx_channel_messages_user
             ON channel_messages(user_id);
-
-        -- SMP Whitelist tabla
-        CREATE TABLE IF NOT EXISTS smp_whitelist (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            discord_id TEXT NOT NULL UNIQUE,
-            minecraft_name TEXT NOT NULL UNIQUE,
-            discord_username TEXT NOT NULL,
-            added_by TEXT,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_smp_whitelist_discord
-            ON smp_whitelist(discord_id);
-
-        CREATE INDEX IF NOT EXISTS idx_smp_whitelist_minecraft
-            ON smp_whitelist(minecraft_name);
     `);
 
     console.log('[Database] Schema initialized successfully');
