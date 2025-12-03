@@ -17,6 +17,8 @@ function initDatabase() {
             voicemaster_category_id TEXT,
             voicemaster_panel_id TEXT,
             role_on_join_id TEXT,
+            rgb_loop_roles TEXT,
+            rgb_loop_interval INTEGER DEFAULT 1500,
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
         );
@@ -63,5 +65,9 @@ function initDatabase() {
 
 // Run initialization
 initDatabase();
+
+// Run migrations
+const { runMigrations } = require('./migrations');
+runMigrations();
 
 module.exports = db;
