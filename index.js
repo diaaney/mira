@@ -8,6 +8,7 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates, // NECESARIO para VoiceMaster
+        GatewayIntentBits.GuildMembers, // NECESARIO para guildMemberAdd
     ],
 });
 
@@ -18,6 +19,7 @@ require('./src/core/CommandHandler')(client);
 require('./src/events/ready.js')(client);
 require('./src/events/interactionCreate.js')(client);
 require('./src/events/messageCreate.js')(client);
-require('./src/events/voiceStateUpdate.js')(client); // ✅ AGREGA ESTO
+require('./src/events/voiceStateUpdate.js')(client);
+require('./src/events/guildMemberAdd.js')(client);
 
 client.login(process.env.DISCORD_TOKEN);

@@ -70,6 +70,23 @@ class GuildConfig {
         const config = this.get(guildId);
         return config && config.voicemaster_generator_id !== null;
     }
+
+    // Get role on join
+    static getRoleOnJoin(guildId) {
+        const config = this.get(guildId);
+        return config ? config.role_on_join_id : null;
+    }
+
+    // Set role on join
+    static setRoleOnJoin(guildId, roleId) {
+        const config = this.getOrCreate(guildId);
+        const stmt = db.prepare(`
+            UPDATE guild_configs
+            SET role_on_join_id = ?, updated_at = ?
+            WHERE guild_id = ?
+        `);
+        stmt.run(roleId, Date.now(), guildId);
+    }
 }
 
 module.exports = GuildConfig;
