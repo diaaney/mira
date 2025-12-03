@@ -21,5 +21,6 @@ require('./src/events/interactionCreate.js')(client);
 require('./src/events/messageCreate.js')(client);
 require('./src/events/voiceStateUpdate.js')(client);
 require('./src/events/guildMemberAdd.js')(client);
+require('./src/events/roleDelete.js')(client);
 
 client.login(process.env.DISCORD_TOKEN);
