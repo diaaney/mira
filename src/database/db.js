@@ -16,6 +16,7 @@ function initDatabase() {
             voicemaster_generator_id TEXT,
             voicemaster_category_id TEXT,
             voicemaster_panel_id TEXT,
+            role_on_join_id TEXT,
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
         );
