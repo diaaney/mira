@@ -27,11 +27,20 @@ module.exports = (client) => {
                 } else {
                     // Wrong number
                     await message.react('❌');
+                    const wasReset = countConfig.current_number > 0;
                     resetCount();
+
+                    let description = `❌ Wrong number!\n\nExpected: **${expectedNumber}** | Got: **${userNumber}**`;
+                    if (wasReset) {
+                        description += `\n\nCount reset to **0**. Next number: **1**`;
+                    } else {
+                        description += `\n\nNext number: **1**`;
+                    }
+
                     await message.reply({
                         embeds: [{
                             color: 0xa82d43,
-                            description: `❌ **${message.author}** Wrong number!\n\nExpected: **${expectedNumber}** | Got: **${userNumber}**\n\nCount reset to **0**. Next number: **1**`
+                            description
                         }]
                     });
                 }
