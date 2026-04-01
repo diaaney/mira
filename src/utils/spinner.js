@@ -60,8 +60,8 @@ async function createAnimatedThinking(interaction, embeds, duration = 2000) {
         }
     };
 
-    // Start animation
-    interval = setInterval(updateVerb, 500);
+    // Start animation - update every 1200ms for slower effect
+    interval = setInterval(updateVerb, 1200);
 
     // Auto-stop after duration
     if (duration > 0) {
