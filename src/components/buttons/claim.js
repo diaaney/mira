@@ -1,5 +1,5 @@
 const embeds = require('../../constants/embeds');
-const ActiveRooms = require('../../database/activeRooms');
+const { claimRoom } = require('../../utils/storage');
 
 module.exports = {
     id: 'vm_claim',
@@ -12,7 +12,7 @@ module.exports = {
             });
         }
 
-        ActiveRooms.claim(channel.id, interaction.user.id);
+        claimRoom(channel.id, interaction.user.id);
         await channel.setName(`${interaction.user.username}'s room`);
 
         return interaction.reply({

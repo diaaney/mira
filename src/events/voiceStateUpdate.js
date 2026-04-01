@@ -1,5 +1,4 @@
-const GuildConfig = require('../database/guildConfig');
-const ActiveRooms = require('../database/activeRooms');
+const { getVoicemasterConfig, createRoom, deleteRoom } = require('../utils/storage');
 
 module.exports = (client) => {
     client.on('voiceStateUpdate', async (oldState, newState) => {
@@ -10,10 +9,10 @@ module.exports = (client) => {
         const guild = newState.guild;
         const joinedChannel = newState.channel;
 
-        const guildConfig = GuildConfig.getVoiceMasterConfig(guild.id);
-        if (!guildConfig || !guildConfig.generator) return;
+        const guildConfig = getVoicemasterConfig();
+        if (!guildConfig || !guildConfig.generator_id) return;
 
-        const generatorId = guildConfig.generator;
+        const generatorId = guildConfig.generator_id;
 
         if (joinedChannel.id === generatorId) {
             const category = joinedChannel.parent;
@@ -37,14 +36,14 @@ module.exports = (client) => {
 
                 await user.voice.setChannel(newChannel);
 
-                // Save to database
-                ActiveRooms.create(newChannel.id, guild.id, user.id);
+                // Save to JSON
+                createRoom(newChannel.id, user.id);
 
                 // Auto-delete when empty
                 const interval = setInterval(() => {
                     if (!newChannel.members.size) {
                         newChannel.delete().catch(() => {});
-                        ActiveRooms.delete(newChannel.id);
+                        deleteRoom(newChannel.id);
                         clearInterval(interval);
                     }
                 }, 1000);

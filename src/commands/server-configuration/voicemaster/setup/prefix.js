@@ -6,11 +6,9 @@ const {
     ButtonStyle,
     PermissionFlagsBits
 } = require('discord.js');
-const fs = require('fs');
 const path = require('path');
+const { setVoicemasterConfig } = require('../../../../utils/storage');
 
-const configPath = path.join(__dirname, '..', 'data', 'config.json');
-const activeRoomsPath = path.join(__dirname, '..', 'data', 'activeRooms.json');
 const vmLogoPath = 'attachment://vm-logo.png';
 
 module.exports = {
@@ -87,19 +85,8 @@ module.exports = {
             files: [path.join(__dirname, '..', 'assets', 'vm-logo.png')],
         });
 
-        const configData = fs.existsSync(configPath)
-            ? JSON.parse(fs.readFileSync(configPath, 'utf8'))
-            : {};
-        configData[guild.id] = {
-            generator: generatorChannel.id,
-            category: category.id,
-            panel: panelChannel.id
-        };
-        fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
-
-        if (!fs.existsSync(activeRoomsPath)) {
-            fs.writeFileSync(activeRoomsPath, JSON.stringify({}, null, 2));
-        }
+        // Save config to JSON
+        setVoicemasterConfig(generatorChannel.id, category.id, panelChannel.id);
 
         message.reply({
             embeds: [{

@@ -8,7 +8,7 @@ const {
     ButtonStyle,
 } = require('discord.js');
 const path = require('path');
-const GuildConfig = require('../../../../database/guildConfig');
+const { setVoicemasterConfig } = require('../../../../utils/storage');
 
 const vmLogoPath = 'attachment://vm-logo.png';
 
@@ -87,12 +87,8 @@ module.exports = {
             files: [path.join(__dirname, '..', 'assets', 'vm-logo.png')]
         });
 
-        // Save config to database
-        GuildConfig.setVoiceMasterConfig(guild.id, {
-            generator: generatorChannel.id,
-            category: category.id,
-            panel: panelChannel.id
-        });
+        // Save config to JSON
+        setVoicemasterConfig(generatorChannel.id, category.id, panelChannel.id);
 
         await interaction.editReply({
             embeds: [{

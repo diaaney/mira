@@ -1,7 +1,7 @@
-const ActiveRooms = require('../../database/activeRooms');
+const { isOwner: checkOwner } = require('../../utils/storage');
 
 function isOwner(channelId, userId) {
-    return ActiveRooms.isOwner(channelId, userId);
+    return checkOwner(channelId, userId);
 }
 
 module.exports = { isOwner };
