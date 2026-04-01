@@ -12,16 +12,16 @@ module.exports = (client) => {
             // Check if message is a valid number
             if (!isNaN(userNumber) && message.content.trim() === userNumber.toString()) {
                 const expectedNumber = countConfig.current_number + 1;
+                const isSameUser = countConfig.last_user_id === message.author.id;
+
+                // Silently ignore if same user tries to count again (regardless of number)
+                if (isSameUser && countConfig.current_number > 0) {
+                    return;
+                }
 
                 // Check if it's the correct number
                 if (userNumber === expectedNumber) {
-                    // Check if it's not the same user as last time
-                    if (countConfig.last_user_id === message.author.id) {
-                        // Silently ignore if same user tries to count again
-                        return;
-                    }
-
-                    // Correct number and different user
+                    // Correct number and different user (or first number)
                     await message.react('✅');
                     updateCount(userNumber, message.author.id);
                 } else {
