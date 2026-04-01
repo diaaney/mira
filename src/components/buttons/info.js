@@ -1,6 +1,5 @@
 const { isOwner } = require('./common');
 const embeds = require('../../constants/embeds');
-const moment = require('moment');
 
 module.exports = {
     id: 'vm_info',

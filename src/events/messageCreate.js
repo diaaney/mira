@@ -1,54 +1,46 @@
-const askLlama = require('../utils/askLlama');
-const ctx = require('../commands/miscellaneous/ai/llamaContext');
-const GuildConfig = require('../database/guildConfig');
-const ragHelper = require('../utils/ragHelper');
+const { getCountingConfig, updateCount, resetCount } = require('../utils/storage');
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
-        // 📝 GUARDAR TODOS LOS MENSAJES en la DB para RAG (en background)
-        if (message.guild && message.content && message.content.length > 0) {
-            ragHelper.saveMessageWithEmbedding(
-                message.channel.id,
-                message.author.id,
-                message.author.username,
-                message.content
-            ).catch(err => console.error('[RAG] Save failed:', err));
-        }
+        // --- 🔹 COUNTING GAME ---
+        const countConfig = getCountingConfig();
+        if (countConfig.channel_id === message.channel.id) {
+            const userNumber = parseInt(message.content.trim());
 
-        // --- 🔹 RESPUESTAS .LLAMA CON RAG ---
-        if (message.content.startsWith('.')) {
-            const userInput = message.content.slice(1).trim();
-            const channelId = message.channel.id;
+            // Check if message is a valid number
+            if (!isNaN(userNumber) && message.content.trim() === userNumber.toString()) {
+                const expectedNumber = countConfig.current_number + 1;
 
-            const systemPrompt = `Eres una chica llamada Mira, tierna pero sarcástica, y estás chateando en Discord con un grupo de humanos. Sé divertida y útil.`;
+                // Check if it's the correct number
+                if (userNumber === expectedNumber) {
+                    // Check if it's not the same user as last time
+                    if (countConfig.last_user_id === message.author.id) {
+                        // Silently ignore if same user tries to count again
+                        return;
+                    }
 
-            try {
-                // Usar RAG para obtener contexto relevante de TODO el historial
-                const reply = await ragHelper.generateResponse(channelId, userInput, systemPrompt);
-                const sentMessage = await message.reply(reply.slice(0, 2000));
-
-                // Guardar la respuesta de Mira en la DB también
-                ragHelper.saveMessageWithEmbedding(
-                    channelId,
-                    client.user.id,
-                    'Mira',
-                    reply.slice(0, 2000)
-                ).catch(err => console.error('[RAG] Failed to save bot response:', err));
-            } catch (err) {
-                console.error('[LLaMA error]', err);
-                await message.reply('❌ No pude responder eso ahora.');
+                    // Correct number and different user
+                    await message.react('✅');
+                    updateCount(userNumber, message.author.id);
+                } else {
+                    // Wrong number
+                    await message.react('❌');
+                    resetCount();
+                    await message.reply({
+                        embeds: [{
+                            color: 0xa82d43,
+                            description: `❌ **${message.author}** Wrong number!\n\nExpected: **${expectedNumber}** | Got: **${userNumber}**\n\nCount reset to **0**. Next number: **1**`
+                        }]
+                    });
+                }
+                return;
             }
-
-            return; // evita que también intente ejecutarlo como comando prefix
         }
 
         // --- 🔹 COMANDOS PREFIX ---
-        // Get guild-specific prefix (defaults to '!')
-        const prefix = message.guild
-            ? GuildConfig.getPrefix(message.guild.id)
-            : '!';
+        const prefix = '!';
 
         if (!message.content.startsWith(prefix)) return;
 

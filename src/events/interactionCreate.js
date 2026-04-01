@@ -2,7 +2,7 @@ const { Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const embeds = require('../constants/embeds');
-const ActiveRooms = require('../database/activeRooms');
+const { getRoom } = require('../utils/storage');
 
 // Cargar todos los botones desde components/buttons/
 const buttons = new Collection();
@@ -46,7 +46,7 @@ module.exports = (client) => {
                 });
             }
 
-            const room = ActiveRooms.get(userChannel.id);
+            const room = getRoom(userChannel.id);
 
             // Los botones como 'claim', 'info' y 'activity' pueden ser usados por cualquiera
             const bypassOwnerCheck = ['vm_claim', 'vm_info', 'vm_activity'];
@@ -86,7 +86,7 @@ module.exports = (client) => {
                 });
             }
 
-            const room = ActiveRooms.get(userChannel.id);
+            const room = getRoom(userChannel.id);
             const selected = interaction.values;
 
             if (interaction.customId === 'vm_disconnect_select') {
