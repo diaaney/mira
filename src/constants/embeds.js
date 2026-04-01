@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 
-// Neutral color matching Discord's embed background (lighter gray on the right)
-const NEUTRAL_COLOR = '#2b2d31'; // Discord dark mode embed background
+// Neutral color matching Discord's embed background exactly
+const NEUTRAL_COLOR = '#393A41'; // Discord dark mode embed background
 
 module.exports = {
     // State embeds
