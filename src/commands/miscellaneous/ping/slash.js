@@ -4,7 +4,7 @@ const embeds = require('../../../constants/embeds');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ping')
-        .setDescription('Check Mira's latency 🏓'),
+        .setDescription("Check Mira's latency 🏓"),
 
     async execute(interaction) {
         const startTime = Date.now();
