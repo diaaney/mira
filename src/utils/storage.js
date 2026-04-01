@@ -37,7 +37,12 @@ function readConfig() {
 }
 
 function writeConfig(config) {
+    // Write to main file
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+    // Create backup for safety
+    const BACKUP_FILE = path.join(DATA_DIR, 'config.backup.json');
+    fs.writeFileSync(BACKUP_FILE, JSON.stringify(config, null, 2));
 }
 
 function readRooms() {
