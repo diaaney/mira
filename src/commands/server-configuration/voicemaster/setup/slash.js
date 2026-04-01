@@ -10,6 +10,7 @@ const {
 const path = require('path');
 const { setVoicemasterConfig } = require('../../../../utils/storage');
 const embeds = require('../../../../constants/embeds');
+const { createAnimatedThinking } = require('../../../../utils/spinner');
 
 const vmLogoPath = 'attachment://vm-logo.png';
 
@@ -26,11 +27,13 @@ module.exports = {
     async execute(interaction) {
         const { guild } = interaction;
 
-        // Show thinking state
+        // Show animated thinking state
         await interaction.reply({
             embeds: [embeds.thinking('Setting up VoiceMaster...')],
             ephemeral: true
         });
+
+        const animation = await createAnimatedThinking(interaction, embeds, 0);
 
         // Crear categoría
         const category = await guild.channels.create({
@@ -96,7 +99,8 @@ module.exports = {
         // Save config to JSON
         setVoicemasterConfig(generatorChannel.id, category.id, panelChannel.id);
 
-        // Update to success state
+        // Stop animation and update to success state
+        animation.stop();
         await interaction.editReply({
             embeds: [embeds.success('VoiceMaster setup completed!')]
         });
