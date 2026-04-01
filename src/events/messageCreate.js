@@ -25,7 +25,7 @@ module.exports = (client) => {
                     await message.react('✅');
                     updateCount(userNumber, message.author.id);
                 } else {
-                    // Wrong number
+                    // Wrong number - reset and clear last user so they can restart
                     await message.react('❌');
                     const wasReset = countConfig.current_number > 0;
                     resetCount();
