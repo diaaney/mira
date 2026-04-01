@@ -1,6 +1,14 @@
+# Dependencies
 node_modules/
+
+# Environment
 .env
+
+# Data
 data/*.json
+
+# Git
+.gitignore
 
 # OS files
 .DS_Store
