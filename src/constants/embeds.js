@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { getRandomVerb } = require('../utils/spinner');
 
 // Neutral color matching Discord's embed background exactly
 const NEUTRAL_COLOR = '#393A41'; // Discord dark mode embed background
@@ -8,12 +9,12 @@ module.exports = {
     thinking: (message = 'Processing...') =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(message),
+            .setDescription(`💭 ${getRandomVerb()}...`),
 
     loading: (message = 'Loading...') =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(message),
+            .setDescription(`💭 ${getRandomVerb()}...`),
 
     // Result embeds
     success: (message) =>
