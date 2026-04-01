@@ -4,7 +4,6 @@ const {
 } = require('discord.js');
 const { setCountingChannel } = require('../../../utils/storage');
 const embeds = require('../../../constants/embeds');
-const { createAnimatedThinking } = require('../../../utils/spinner');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,22 +18,19 @@ module.exports = {
     async execute(interaction) {
         const channel = interaction.channel;
 
-        // Show animated thinking state
+        // Show thinking state with random verb
         await interaction.reply({
-            embeds: [embeds.thinking('Configuring counting game...')],
+            embeds: [embeds.thinking()],
             ephemeral: true
         });
-
-        const animation = await createAnimatedThinking(interaction, embeds, 1500);
 
         // Set this channel as the counting channel
         setCountingChannel(channel.id);
 
         // Small delay for effect
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 600));
 
-        // Stop animation and update to success state
-        animation.stop();
+        // Update to success state
         await interaction.editReply({
             embeds: [embeds.success(
                 `Counting game enabled in ${channel}!\n\n` +
