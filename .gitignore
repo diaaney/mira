@@ -1,3 +1,13 @@
 node_modules/
 .env
 data/*.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
