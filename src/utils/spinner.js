@@ -46,14 +46,16 @@ async function createAnimatedThinking(interaction, embeds, duration = 2000) {
     let interval;
     let stopped = false;
 
-    // Update embed with random verb every 500ms
+    // Update embed with random verb
     const updateVerb = async () => {
         if (stopped) return;
 
         const verb = getRandomVerb();
+        // Pad the verb to ensure consistent embed width (30 chars)
+        const paddedVerb = verb.padEnd(30, '\u200B'); // invisible character padding
         try {
             await interaction.editReply({
-                embeds: [embeds.thinking(`${verb}...`)]
+                embeds: [embeds.thinking(`${paddedVerb}...`)]
             });
         } catch (error) {
             // Ignore errors if interaction expired
