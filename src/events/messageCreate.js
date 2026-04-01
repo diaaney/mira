@@ -1,4 +1,5 @@
 const { getCountingConfig, updateCount, resetCount } = require('../utils/storage');
+const embeds = require('../constants/embeds');
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
@@ -30,7 +31,7 @@ module.exports = (client) => {
                     const wasReset = countConfig.current_number > 0;
                     resetCount();
 
-                    let description = `❌ Wrong number!\n\nExpected: **${expectedNumber}** | Got: **${userNumber}**`;
+                    let description = `Wrong number!\n\nExpected: **${expectedNumber}** | Got: **${userNumber}**`;
                     if (wasReset) {
                         description += `\n\nCount reset to **0**. Next number: **1**`;
                     } else {
@@ -38,10 +39,7 @@ module.exports = (client) => {
                     }
 
                     await message.reply({
-                        embeds: [{
-                            color: 0xa82d43,
-                            description
-                        }]
+                        embeds: [embeds.error(description)]
                     });
                 }
                 return;
