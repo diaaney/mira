@@ -7,7 +7,7 @@ const commands = [];
 const commandsPath = path.join(__dirname, 'src', 'commands');
 
 console.log('\n╔══════════════════════════════════════════════╗');
-console.log('║     Mira Bot - Command Deployment Tool      ║');
+console.log('║     Mira Bot - Command Deployment Tool       ║');
 console.log('╚══════════════════════════════════════════════╝\n');
 
 // Recursive function to find all slash.js files
