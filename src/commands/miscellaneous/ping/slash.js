@@ -7,9 +7,17 @@ module.exports = {
         .setDescription('Check Mira’s latency 🏓'),
 
     async execute(interaction) {
-        const sent = await interaction.reply({ content: 'Pinging...', fetchReply: true });
+        // Show thinking state
+        const sent = await interaction.reply({
+            embeds: [embeds.thinking('Pinging...')],
+            fetchReply: true
+        });
+
         const latency = sent.createdTimestamp - interaction.createdTimestamp;
 
-        await interaction.editReply({ embeds: [embeds.success(`Pong! Latency is **${latency}ms**`)] });
+        // Update to success state
+        await interaction.editReply({
+            embeds: [embeds.success(`🏓 Pong! Latency is **${latency}ms**`)]
+        });
     }
 };

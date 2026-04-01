@@ -9,6 +9,7 @@ const {
 } = require('discord.js');
 const path = require('path');
 const { setVoicemasterConfig } = require('../../../../utils/storage');
+const embeds = require('../../../../constants/embeds');
 
 const vmLogoPath = 'attachment://vm-logo.png';
 
@@ -24,7 +25,12 @@ module.exports = {
 
     async execute(interaction) {
         const { guild } = interaction;
-        await interaction.deferReply({ ephemeral: true });
+
+        // Show thinking state
+        await interaction.reply({
+            embeds: [embeds.thinking('Setting up VoiceMaster...')],
+            ephemeral: true
+        });
 
         // Crear categoría
         const category = await guild.channels.create({
@@ -61,7 +67,7 @@ module.exports = {
                 `<:increase:1442162325514621100> — **\`Increase\`** the user limit\n` +
                 `<:decrease:1442162157465636997> — **\`Decrease\`** the user limit`
             )
-            .setColor('#3c3b40')
+            .setColor(embeds.NEUTRAL_COLOR)
             .setThumbnail(vmLogoPath)
             .setFooter({ text: 'VoiceMaster by Mira' });
 
@@ -90,11 +96,9 @@ module.exports = {
         // Save config to JSON
         setVoicemasterConfig(generatorChannel.id, category.id, panelChannel.id);
 
+        // Update to success state
         await interaction.editReply({
-            embeds: [{
-                color: 0x7ab158,
-                description: '✅ VoiceMaster setup completed!',
-            }]
+            embeds: [embeds.success('VoiceMaster setup completed!')]
         });
     }
 };
