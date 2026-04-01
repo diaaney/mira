@@ -8,18 +8,18 @@ module.exports = {
         .setDescription('Check Mira’s latency 🏓'),
 
     async execute(interaction) {
-        // Reply immediately to avoid timeout
-        await interaction.reply({
-            embeds: [embeds.thinking('Pinging...')]
-        });
-
         const startTime = Date.now();
 
-        // Start animation
-        const animation = await createAnimatedThinking(interaction, embeds, 1500);
+        // Reply with first verb immediately to avoid timeout
+        await interaction.reply({
+            embeds: [embeds.thinking('Loading...')]
+        });
 
-        // Small delay to show animation
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Start animation
+        const animation = await createAnimatedThinking(interaction, embeds, 2400);
+
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, 2400));
 
         const latency = Date.now() - startTime;
 

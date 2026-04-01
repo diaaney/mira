@@ -62,6 +62,9 @@ async function createAnimatedThinking(interaction, embeds, duration = 2000) {
         }
     };
 
+    // Update immediately with first verb
+    updateVerb();
+
     // Start animation - update every 1200ms for slower effect
     interval = setInterval(updateVerb, 1200);
 
