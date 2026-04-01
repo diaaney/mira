@@ -1,40 +1,40 @@
 const { EmbedBuilder } = require('discord.js');
 
-// Neutral color for all embeds
-const NEUTRAL_COLOR = '#5865F2'; // Discord blurple
+// Neutral dark color matching Discord's embed background
+const NEUTRAL_COLOR = '#2B2D31'; // Discord dark gray
 
 module.exports = {
     // State embeds
     thinking: (message = 'Processing...') =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`💭 ${message}`),
+            .setDescription(message),
 
     loading: (message = 'Loading...') =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`⏳ ${message}`),
+            .setDescription(message),
 
     // Result embeds
     success: (message) =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`✅ ${message}`),
+            .setDescription(message),
 
     error: (message) =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`❌ ${message}`),
+            .setDescription(message),
 
     info: (message) =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`ℹ️ ${message}`),
+            .setDescription(message),
 
     warn: (message) =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`⚠️ ${message}`),
+            .setDescription(message),
 
     // Export color constant
     NEUTRAL_COLOR
