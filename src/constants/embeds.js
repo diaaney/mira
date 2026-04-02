@@ -9,12 +9,12 @@ module.exports = {
     thinking: (message = 'Processing...') =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`💭 ${getRandomVerb()}...`),
+            .setDescription(`:loading: ${getRandomVerb()}...`),
 
     loading: (message = 'Loading...') =>
         new EmbedBuilder()
             .setColor(NEUTRAL_COLOR)
-            .setDescription(`💭 ${getRandomVerb()}...`),
+            .setDescription(`:loading: ${getRandomVerb()}...`),
 
     // Result embeds
     success: (message) =>
