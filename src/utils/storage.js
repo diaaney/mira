@@ -22,7 +22,8 @@ if (!fs.existsSync(CONFIG_FILE)) {
             channel_id: null,
             current_number: 0,
             last_user_id: null
-        }
+        },
+        afk_users: {}
     }, null, 2));
 }
 
@@ -152,6 +153,46 @@ function resetCount() {
     writeConfig(config);
 }
 
+// AFK Functions
+function getAfkUsers() {
+    const config = readConfig();
+    if (!config.afk_users) {
+        config.afk_users = {};
+        writeConfig(config);
+    }
+    return config.afk_users;
+}
+
+function setAfk(user_id, reason) {
+    const config = readConfig();
+    if (!config.afk_users) {
+        config.afk_users = {};
+    }
+    config.afk_users[user_id] = {
+        reason: reason || 'no reason provided',
+        since: Date.now()
+    };
+    writeConfig(config);
+}
+
+function removeAfk(user_id) {
+    const config = readConfig();
+    if (!config.afk_users) {
+        config.afk_users = {};
+    }
+    if (config.afk_users[user_id]) {
+        delete config.afk_users[user_id];
+        writeConfig(config);
+        return true;
+    }
+    return false;
+}
+
+function isAfk(user_id) {
+    const afkUsers = getAfkUsers();
+    return afkUsers[user_id] || null;
+}
+
 module.exports = {
     getVoicemasterConfig,
     setVoicemasterConfig,
@@ -164,5 +205,9 @@ module.exports = {
     getCountingConfig,
     setCountingChannel,
     updateCount,
-    resetCount
+    resetCount,
+    getAfkUsers,
+    setAfk,
+    removeAfk,
+    isAfk
 };
