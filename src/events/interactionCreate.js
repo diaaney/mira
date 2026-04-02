@@ -104,8 +104,7 @@ module.exports = (client) => {
                     const roleName = selectedRole ? selectedRole.name : 'your color';
 
                     return interaction.reply({
-                        embeds: [embeds.success(`You got the **${roleName}** role now. Looking fresh!`)],
-                        ephemeral: true
+                        embeds: [embeds.success(`you got the **${roleName}** role now. looking fresh!`)]
                     });
                 } catch (err) {
                     console.error('Error assigning color role:', err);

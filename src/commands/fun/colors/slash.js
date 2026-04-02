@@ -24,8 +24,7 @@ module.exports = {
     async execute(interaction) {
         // Show thinking state
         await interaction.reply({
-            embeds: [embeds.thinking()],
-            ephemeral: true
+            embeds: [embeds.thinking()]
         });
 
         // Animation delay (1200ms like count command)
@@ -34,7 +33,7 @@ module.exports = {
         // Create select menu with color options
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('color_select')
-            .setPlaceholder('Choose your vibe...')
+            .setPlaceholder('choose your vibe...')
             .addOptions(
                 COLOR_ROLES.map(color =>
                     new StringSelectMenuOptionBuilder()
@@ -48,7 +47,7 @@ module.exports = {
 
         // Update with select menu
         await interaction.editReply({
-            embeds: [embeds.success('**Aight, what color you feelin\'?**\n\nPick one from the dropdown below.')],
+            embeds: [embeds.success('**aight, what color you feelin\'?**\n\npick one from the dropdown below.')],
             components: [row]
         });
     }
