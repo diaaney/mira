@@ -7,12 +7,12 @@ module.exports = {
         .setDescription("Check Mira's latency 🏓"),
 
     async execute(interaction) {
-        // Show thinking state with random verb
-        await interaction.reply({
-            embeds: [embeds.thinking()]
-        });
+        // Calculate actual latency (before deferring)
+        const startTime = Date.now();
 
-        // Calculate actual latency (before animation delay)
+        // Defer reply to prevent interaction timeout
+        await interaction.deferReply();
+
         const latency = Date.now() - interaction.createdTimestamp;
         const wsPing = interaction.client.ws.ping;
 
@@ -22,11 +22,11 @@ module.exports = {
         const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
         const uptimeFormatted = `${hours}h ${minutes}m`;
 
-        // Animation delay (doubled to 1600ms)
+        // Animation delay (1600ms)
         await new Promise(resolve => setTimeout(resolve, 1600));
 
         // Update to success state with terminal-style format
-        const message = `🏓  **Ping Check**\n→ API: ${latency}ms\n→ WebSocket: ${wsPing}ms\n→ Uptime: ${uptimeFormatted}`;
+        const message = `**PING CHECK**\n→ API: ${latency}ms\n→ WebSocket: ${wsPing}ms\n→ Uptime: ${uptimeFormatted}`;
 
         await interaction.editReply({
             embeds: [embeds.success(message)]
