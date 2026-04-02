@@ -27,8 +27,8 @@ module.exports = {
         // Set this channel as the counting channel
         setCountingChannel(channel.id);
 
-        // Small delay for effect
-        await new Promise(resolve => setTimeout(resolve, 600));
+        // Animation delay (1200ms)
+        await new Promise(resolve => setTimeout(resolve, 1200));
 
         // Update to success state
         await interaction.editReply({

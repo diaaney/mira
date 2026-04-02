@@ -7,17 +7,16 @@ module.exports = {
         .setDescription("Check Mira's latency 🏓"),
 
     async execute(interaction) {
-        const startTime = Date.now();
-
         // Show thinking state with random verb
         await interaction.reply({
             embeds: [embeds.thinking()]
         });
 
-        // Small delay for effect
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Calculate actual latency (before animation delay)
+        const latency = Date.now() - interaction.createdTimestamp;
 
-        const latency = Date.now() - startTime;
+        // Animation delay (doubled to 1600ms)
+        await new Promise(resolve => setTimeout(resolve, 1600));
 
         // Update to success state
         await interaction.editReply({
