@@ -22,10 +22,8 @@ module.exports = {
         .setDescription('Aight, pick your color role!'),
 
     async execute(interaction) {
-        // Show thinking state
-        await interaction.reply({
-            embeds: [embeds.thinking()]
-        });
+        // Defer reply to prevent interaction timeout
+        await interaction.deferReply();
 
         // Animation delay (1200ms like count command)
         await new Promise(resolve => setTimeout(resolve, 1200));
