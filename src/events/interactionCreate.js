@@ -78,6 +78,44 @@ module.exports = (client) => {
 
         // Select menu (ej: disconnect y activity)
         if (interaction.isStringSelectMenu()) {
+            // Color selection menu (doesn't require voice channel)
+            if (interaction.customId === 'color_select') {
+                const selectedRoleId = interaction.values[0];
+                const member = interaction.member;
+
+                // Define all color roles to remove
+                const allColorRoles = [
+                    '1488317627062288535',
+                    '1488317627913994261',
+                    '1488317628568305825',
+                    '1488317629801431211',
+                    '1488317630703079617',
+                    '1488317631458050088',
+                ];
+
+                try {
+                    // Remove all color roles first
+                    await member.roles.remove(allColorRoles).catch(() => {});
+
+                    // Add the selected color role
+                    await member.roles.add(selectedRoleId);
+
+                    const selectedRole = interaction.guild.roles.cache.get(selectedRoleId);
+                    const roleName = selectedRole ? selectedRole.name : 'your color';
+
+                    return interaction.reply({
+                        embeds: [embeds.success(`You got the **${roleName}** role now. Looking fresh!`)],
+                        ephemeral: true
+                    });
+                } catch (err) {
+                    console.error('Error assigning color role:', err);
+                    return interaction.reply({
+                        embeds: [embeds.error('Couldn\'t assign that color role. Maybe I don\'t have permission?')],
+                        ephemeral: true
+                    });
+                }
+            }
+
             const userChannel = interaction.member.voice?.channel;
             if (!userChannel) {
                 return interaction.reply({
