@@ -12,7 +12,15 @@ module.exports = {
             });
         }
 
+        // Lock for everyone
         await channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { Connect: false });
+
+        // Ensure owner keeps their permissions including MoveMembers
+        await channel.permissionOverwrites.edit(interaction.user.id, {
+            Connect: true,
+            ManageChannels: true,
+            MoveMembers: true
+        });
 
         return interaction.reply({
             embeds: [embeds.success('Channel locked.')],
