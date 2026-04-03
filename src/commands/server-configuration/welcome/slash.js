@@ -1,5 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const embeds = require('../../../constants/embeds');
+const { getWelcomeConfig, setWelcomeChannel } = require('../../../utils/storage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,12 +9,19 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('setup')
-                .setDescription('preview the welcome message (admin only)')
+                .setDescription('configure the welcome channel (admin only)')
+                .addChannelOption(option =>
+                    option
+                        .setName('channel')
+                        .setDescription('channel where welcome messages will be sent')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(true)
+                )
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('test')
-                .setDescription('test the welcome message from any channel')
+                .setDescription('test the welcome message in the configured channel')
         ),
 
     async execute(interaction) {
@@ -28,34 +36,45 @@ module.exports = {
                 });
             }
 
+            const channel = interaction.options.getChannel('channel');
+
+            // Save the welcome channel
+            setWelcomeChannel(channel.id);
+
             // Defer reply to prevent interaction timeout
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
 
             // Animation delay (1200ms)
             await new Promise(resolve => setTimeout(resolve, 1200));
 
-            const user = interaction.user;
-            const member = interaction.member;
-            const avatarURL = user.displayAvatarURL({ dynamic: true, size: 256 });
-
-            const welcomeEmbed = new EmbedBuilder()
-                .setColor(embeds.NEUTRAL_COLOR)
-                .setAuthor({
-                    name: `wlc ${member.displayName} <3`,
-                    iconURL: avatarURL
-                })
-                .setDescription(`wlc to meow café! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1488317657911656600>      <#1488848193591709696>`)
-                .setThumbnail(avatarURL)
-                .setFooter({ text: `users | ${interaction.guild.memberCount}` });
-
             await interaction.editReply({
-                embeds: [welcomeEmbed]
+                embeds: [embeds.success(`welcome channel set to ${channel}! ✨\n\nuse \`/welcome test\` to preview the message`)]
             });
         }
 
         if (subcommand === 'test') {
+            // Get welcome configuration
+            const welcomeConfig = getWelcomeConfig();
+
+            if (!welcomeConfig.channel_id) {
+                return interaction.reply({
+                    embeds: [embeds.error('nah, you need to configure a welcome channel first using `/welcome setup`')],
+                    ephemeral: true
+                });
+            }
+
+            // Get the configured channel
+            const welcomeChannel = await interaction.guild.channels.fetch(welcomeConfig.channel_id);
+
+            if (!welcomeChannel) {
+                return interaction.reply({
+                    embeds: [embeds.error('the configured welcome channel no longer exists. please run `/welcome setup` again')],
+                    ephemeral: true
+                });
+            }
+
             // Defer reply to prevent interaction timeout
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
 
             // Animation delay (1200ms)
             await new Promise(resolve => setTimeout(resolve, 1200));
@@ -70,12 +89,18 @@ module.exports = {
                     name: `wlc ${member.displayName} <3`,
                     iconURL: avatarURL
                 })
-                .setDescription(`wlc to missu! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1488317657911656600>      <#1488848193591709696>`)
+                .setDescription(`wlc to missu! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n[guide](https://discord.com/channels/${interaction.guild.id}/1488317654501691423)      <#1488317657911656600>      <#1488848193591709696>`)
                 .setThumbnail(avatarURL)
                 .setFooter({ text: `users | ${interaction.guild.memberCount}` });
 
-            await interaction.editReply({
+            // Send to welcome channel
+            await welcomeChannel.send({
                 embeds: [welcomeEmbed]
+            });
+
+            // Confirm to user
+            await interaction.editReply({
+                embeds: [embeds.success(`test message sent to ${welcomeChannel}! ✨`)]
             });
         }
     }
