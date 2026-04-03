@@ -89,7 +89,7 @@ module.exports = {
                     name: `wlc ${member.displayName} <3`,
                     iconURL: avatarURL
                 })
-                .setDescription(`wlc to meow café! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1488317657911656600>      <#1488848193591709696>`)
+                .setDescription(`wlc to meow café! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1489428117666926612>      <#1488848193591709696>`)
                 .setThumbnail(avatarURL)
                 .setFooter({ text: `users | ${interaction.guild.memberCount}` });
 
