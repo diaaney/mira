@@ -95,6 +95,7 @@ module.exports = {
 
             // Send to welcome channel
             await welcomeChannel.send({
+                content: `${member}`,
                 embeds: [welcomeEmbed]
             });
 
