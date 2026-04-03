@@ -33,7 +33,7 @@ module.exports = {
             // First embed - Guidelines and TOS
             const guidelinesEmbed = new EmbedBuilder()
                 .setColor(embeds.NEUTRAL_COLOR)
-                .setDescription(`**use your common sense and follow [discord guidelines](https://discord.com/guidelines) & [tos](https://discord.com/terms)**`);
+                .setDescription(`**use your common sense and follow [guidelines](https://discord.com/guidelines) & [tos](https://discord.com/terms)**`);
 
             // Second embed - Bot commands
             const commandsEmbed = new EmbedBuilder()
