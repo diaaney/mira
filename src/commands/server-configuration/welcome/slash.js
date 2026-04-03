@@ -35,12 +35,18 @@ module.exports = {
             await new Promise(resolve => setTimeout(resolve, 1200));
 
             const user = interaction.user;
-            const avatarURL = user.displayAvatarURL({ dynamic: true, size: 2048 });
+            const member = interaction.member;
+            const avatarURL = user.displayAvatarURL({ dynamic: true, size: 256 });
 
             const welcomeEmbed = new EmbedBuilder()
                 .setColor(embeds.NEUTRAL_COLOR)
-                .setDescription(`**wlc to méow café ✧˖°**`)
-                .setImage(avatarURL);
+                .setAuthor({
+                    name: `wlc ${member.displayName} <3`,
+                    iconURL: avatarURL
+                })
+                .setDescription(`wlc to meow café! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1488317657911656600>      <#1488848193591709696>`)
+                .setThumbnail(avatarURL)
+                .setFooter({ text: `users | ${interaction.guild.memberCount}` });
 
             await interaction.editReply({
                 embeds: [welcomeEmbed]
@@ -55,12 +61,18 @@ module.exports = {
             await new Promise(resolve => setTimeout(resolve, 1200));
 
             const user = interaction.user;
-            const avatarURL = user.displayAvatarURL({ dynamic: true, size: 2048 });
+            const member = interaction.member;
+            const avatarURL = user.displayAvatarURL({ dynamic: true, size: 256 });
 
             const welcomeEmbed = new EmbedBuilder()
                 .setColor(embeds.NEUTRAL_COLOR)
-                .setDescription(`**wlc to méow café ✧˖°**`)
-                .setImage(avatarURL);
+                .setAuthor({
+                    name: `wlc ${member.displayName} <3`,
+                    iconURL: avatarURL
+                })
+                .setDescription(`wlc to missu! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1488317657911656600>      <#1488848193591709696>`)
+                .setThumbnail(avatarURL)
+                .setFooter({ text: `users | ${interaction.guild.memberCount}` });
 
             await interaction.editReply({
                 embeds: [welcomeEmbed]
