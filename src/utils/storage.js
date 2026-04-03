@@ -23,6 +23,9 @@ if (!fs.existsSync(CONFIG_FILE)) {
             current_number: 0,
             last_user_id: null
         },
+        welcome: {
+            channel_id: null
+        },
         afk_users: {}
     }, null, 2));
 }
@@ -193,6 +196,26 @@ function isAfk(user_id) {
     return afkUsers[user_id] || null;
 }
 
+// Welcome Functions
+function getWelcomeConfig() {
+    const config = readConfig();
+    if (!config.welcome) {
+        config.welcome = {
+            channel_id: null
+        };
+        writeConfig(config);
+    }
+    return config.welcome;
+}
+
+function setWelcomeChannel(channel_id) {
+    const config = readConfig();
+    config.welcome = {
+        channel_id
+    };
+    writeConfig(config);
+}
+
 module.exports = {
     getVoicemasterConfig,
     setVoicemasterConfig,
@@ -209,5 +232,7 @@ module.exports = {
     getAfkUsers,
     setAfk,
     removeAfk,
-    isAfk
+    isAfk,
+    getWelcomeConfig,
+    setWelcomeChannel
 };
