@@ -70,27 +70,11 @@ module.exports = {
                 name: `${targetUser.username}'s profile`,
                 iconURL: targetUser.displayAvatarURL({ dynamic: true })
             })
-            .addFields(
-                {
-                    name: '🎮 minecraft',
-                    value: `\`${profile.minecraft_username}\``,
-                    inline: true
-                },
-                {
-                    name: '⚔️ peak elo',
-                    value: `\`${profile.peak_elo}\``,
-                    inline: true
-                },
-                {
-                    name: '📊 current elo',
-                    value: `\`${profile.current_elo}\``,
-                    inline: true
-                },
-                {
-                    name: '📍 location',
-                    value: `${profile.country_emoji} ${profile.city}, ${profile.state}, ${profile.country}`,
-                    inline: false
-                }
+            .setDescription(
+                `**minecraft:** ${profile.minecraft_username}\n` +
+                `**peak elo:** ${profile.peak_elo}\n` +
+                `**current elo:** ${profile.current_elo}\n` +
+                `**location:** ${profile.city}, ${profile.state} ${profile.country_emoji}`
             )
             .setThumbnail(profile.skin_url)
             .setFooter({
