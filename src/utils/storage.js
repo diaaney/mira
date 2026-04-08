@@ -26,7 +26,8 @@ if (!fs.existsSync(CONFIG_FILE)) {
         welcome: {
             channel_id: null
         },
-        afk_users: {}
+        afk_users: {},
+        react_messages: {}
     }, null, 2));
 }
 
@@ -216,6 +217,30 @@ function setWelcomeChannel(channel_id) {
     writeConfig(config);
 }
 
+// React Messages Functions
+function setReactMessage(user_id, emoji, count) {
+    const config = readConfig();
+    if (!config.react_messages) config.react_messages = {};
+    config.react_messages[user_id] = { emoji, remaining: count };
+    writeConfig(config);
+}
+
+function getReactMessage(user_id) {
+    const config = readConfig();
+    if (!config.react_messages) return null;
+    return config.react_messages[user_id] || null;
+}
+
+function decrementReactMessage(user_id) {
+    const config = readConfig();
+    if (!config.react_messages || !config.react_messages[user_id]) return;
+    config.react_messages[user_id].remaining -= 1;
+    if (config.react_messages[user_id].remaining <= 0) {
+        delete config.react_messages[user_id];
+    }
+    writeConfig(config);
+}
+
 module.exports = {
     getVoicemasterConfig,
     setVoicemasterConfig,
@@ -234,5 +259,8 @@ module.exports = {
     removeAfk,
     isAfk,
     getWelcomeConfig,
-    setWelcomeChannel
+    setWelcomeChannel,
+    setReactMessage,
+    getReactMessage,
+    decrementReactMessage
 };
