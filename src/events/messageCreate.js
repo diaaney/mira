@@ -1,4 +1,4 @@
-const { getCountingConfig, updateCount, resetCount, isAfk, removeAfk } = require('../utils/storage');
+const { getCountingConfig, updateCount, resetCount, isAfk, removeAfk, getReactMessage, decrementReactMessage } = require('../utils/storage');
 const embeds = require('../constants/embeds');
 
 module.exports = (client) => {
@@ -34,6 +34,13 @@ module.exports = (client) => {
                     break; // Only show one AFK message per message
                 }
             }
+        }
+
+        // --- 🔹 REACT MESSAGES ---
+        const reactData = getReactMessage(message.author.id);
+        if (reactData) {
+            await message.react(reactData.emoji).catch(() => {});
+            decrementReactMessage(message.author.id);
         }
 
         // --- 🔹 COUNTING GAME ---
