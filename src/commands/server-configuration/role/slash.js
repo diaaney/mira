@@ -7,36 +7,24 @@ module.exports = {
         .setName('role')
         .setDescription('manage roles for members')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
-        .addSubcommand(sub =>
-            sub.setName('all')
-                .setDescription('give a role to every member')
-                .addRoleOption(opt =>
-                    opt.setName('role')
-                        .setDescription('the role to give everyone')
-                        .setRequired(true)
+        .addStringOption(opt =>
+            opt.setName('mode')
+                .setDescription('what to do with the role')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'join — set autorole for new members', value: 'join' },
+                    { name: 'all — give role to every member', value: 'all' },
+                    { name: 'removeall — remove role from everyone who has it', value: 'removeall' },
                 )
         )
-        .addSubcommand(sub =>
-            sub.setName('removeall')
-                .setDescription('remove a role from every member who has it')
-                .addRoleOption(opt =>
-                    opt.setName('role')
-                        .setDescription('the role to remove from everyone')
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(sub =>
-            sub.setName('join')
-                .setDescription('set the role mira gives to new members on join')
-                .addRoleOption(opt =>
-                    opt.setName('role')
-                        .setDescription('the role to auto-assign (overwrites previous one)')
-                        .setRequired(true)
-                )
+        .addRoleOption(opt =>
+            opt.setName('role')
+                .setDescription('the role to apply')
+                .setRequired(true)
         ),
 
     async execute(interaction) {
-        const sub = interaction.options.getSubcommand();
+        const mode = interaction.options.getString('mode');
         const role = interaction.options.getRole('role');
         const { guild } = interaction;
         const me = guild.members.me;
@@ -62,7 +50,7 @@ module.exports = {
             });
         }
 
-        if (sub === 'join') {
+        if (mode === 'join') {
             setAutoroleConfig(role.id);
             return interaction.reply({
                 embeds: [embeds.success(`new members will now get ${role} automatically ✨`)],
@@ -75,7 +63,7 @@ module.exports = {
         const members = await guild.members.fetch();
         const nonBots = members.filter(m => !m.user.bot);
 
-        const isAdd = sub === 'all';
+        const isAdd = mode === 'all';
         const targets = isAdd
             ? nonBots.filter(m => !m.roles.cache.has(role.id))
             : nonBots.filter(m => m.roles.cache.has(role.id));
