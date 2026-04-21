@@ -197,6 +197,22 @@ function isAfk(user_id) {
     return afkUsers[user_id] || null;
 }
 
+// Autorole Functions
+function getAutoroleConfig() {
+    const config = readConfig();
+    if (!config.autorole) {
+        config.autorole = { role_id: null };
+        writeConfig(config);
+    }
+    return config.autorole;
+}
+
+function setAutoroleConfig(role_id) {
+    const config = readConfig();
+    config.autorole = { role_id };
+    writeConfig(config);
+}
+
 // Welcome Functions
 function getWelcomeConfig() {
     const config = readConfig();
@@ -262,5 +278,7 @@ module.exports = {
     setWelcomeChannel,
     setReactMessage,
     getReactMessage,
-    decrementReactMessage
+    decrementReactMessage,
+    getAutoroleConfig,
+    setAutoroleConfig
 };
