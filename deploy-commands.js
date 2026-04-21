@@ -40,13 +40,18 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
         );
         console.log(`🌍 Global: deployed ${globalData.length} command(s) (propagation up to 1 hour)`);
 
-        // If GUILD_ID is set, also deploy to that guild so changes show up instantly there.
-        if (process.env.GUILD_ID) {
+        // GUILD_ID may be a single id or a comma-separated list — each gets an instant deploy.
+        const guildIds = (process.env.GUILD_ID || '')
+            .split(',')
+            .map(id => id.trim())
+            .filter(Boolean);
+
+        for (const guildId of guildIds) {
             const guildData = await rest.put(
-                Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+                Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
                 { body: commands },
             );
-            console.log(`⚡ Guild ${process.env.GUILD_ID}: deployed ${guildData.length} command(s) (instant)`);
+            console.log(`⚡ Guild ${guildId}: deployed ${guildData.length} command(s) (instant)`);
         }
 
         console.log('\n╔══════════════════════════════════════════════╗');
