@@ -1,9 +1,24 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const embeds = require('../constants/embeds');
-const { getWelcomeConfig } = require('../utils/storage');
+const { getWelcomeConfig, getAutoroleConfig } = require('../utils/storage');
 
 module.exports = (client) => {
     client.on(Events.GuildMemberAdd, async (member) => {
+        // Autorole: give configured role to the new member
+        try {
+            const autoroleConfig = getAutoroleConfig();
+            if (autoroleConfig.role_id && !member.user.bot) {
+                const role = await member.guild.roles.fetch(autoroleConfig.role_id).catch(() => null);
+                if (role) {
+                    await member.roles.add(role, 'autorole via /role join').catch(err => {
+                        console.error('[Autorole] failed to assign role:', err.message);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('[Autorole] error:', error);
+        }
+
         try {
             // Get welcome configuration
             const welcomeConfig = getWelcomeConfig();
