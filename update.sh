@@ -2,6 +2,8 @@
 
 # Mira Discord Bot - Update Script
 # This script pulls the latest changes from GitHub and restarts the bot
+# Runs every operation as the `av6cts` user (owner of the bot and pm2 daemon),
+# so it works whether you invoke it as `diane` via gcloud SSH or directly as `av6cts`.
 
 set -e
 
@@ -10,26 +12,36 @@ echo "  Mira Bot - Update Script"
 echo "======================================"
 echo ""
 
-cd ~/mira
+# If already av6cts, no wrapping needed; otherwise run each command via sudo -u av6cts -H.
+if [ "$(whoami)" = "av6cts" ]; then
+    RUN=""
+else
+    RUN="sudo -u av6cts -H"
+fi
+
+PM2="$RUN /home/av6cts/.npm-global/bin/pm2"
+MIRA_DIR="/home/av6cts/mira"
+
+cd "$MIRA_DIR"
 
 # Stop the bot
 echo "🛑 Stopping bot..."
-pm2 stop mira || echo "Bot was not running"
+$PM2 stop mira || echo "Bot was not running"
 
 # Pull latest changes
 echo "📥 Pulling latest changes from GitHub..."
-git pull origin main
+$RUN git -C "$MIRA_DIR" pull origin main
 
 # Install/update dependencies
 echo "📦 Updating dependencies..."
-npm install
+$RUN bash -c "cd $MIRA_DIR && npm install"
 
 # Restart the bot
 echo "🚀 Starting bot..."
-pm2 start ecosystem.config.js
+$PM2 start ecosystem.config.js
 
 # Save PM2 configuration
-pm2 save
+$PM2 save
 
 echo ""
 echo "======================================"
@@ -37,7 +49,7 @@ echo "  ✅ Update Complete!"
 echo "======================================"
 echo ""
 echo "Bot status:"
-pm2 status mira
+$PM2 status mira
 echo ""
 echo "View logs with: pm2 logs mira"
 echo ""
