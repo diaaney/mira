@@ -33,28 +33,23 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     try {
         console.log(`\n🚀 Deploying ${commands.length} slash command(s) to Discord...\n`);
 
-        const useGuild = process.env.GUILD_ID;
+        // Always deploy globally so the commands show up in every server mira is in.
+        const globalData = await rest.put(
+            Routes.applicationCommands(process.env.CLIENT_ID),
+            { body: commands },
+        );
+        console.log(`🌍 Global: deployed ${globalData.length} command(s) (propagation up to 1 hour)`);
 
-        if (useGuild) {
-            // Guild-specific deployment (instant)
-            const data = await rest.put(
+        // If GUILD_ID is set, also deploy to that guild so changes show up instantly there.
+        if (process.env.GUILD_ID) {
+            const guildData = await rest.put(
                 Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
                 { body: commands },
             );
-            console.log(`✅ Successfully deployed ${data.length} command(s) to guild ${process.env.GUILD_ID}`);
-            console.log('💡 Commands are available instantly in your server!\n');
-        } else {
-            // Global deployment
-            const data = await rest.put(
-                Routes.applicationCommands(process.env.CLIENT_ID),
-                { body: commands },
-            );
-            console.log(`✅ Successfully deployed ${data.length} command(s) globally`);
-            console.log('⏳ Global commands may take up to 1 hour to propagate\n');
-            console.log('💡 Tip: Add GUILD_ID to .env for instant testing\n');
+            console.log(`⚡ Guild ${process.env.GUILD_ID}: deployed ${guildData.length} command(s) (instant)`);
         }
 
-        console.log('╔══════════════════════════════════════════════╗');
+        console.log('\n╔══════════════════════════════════════════════╗');
         console.log('║           Deployment Complete! 🎉            ║');
         console.log('╚══════════════════════════════════════════════╝\n');
     } catch (error) {
