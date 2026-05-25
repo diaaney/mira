@@ -40,6 +40,23 @@ function isValidIconUrl(url) {
     }
 }
 
+function detectImageMime(buf) {
+    if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png';
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+    if (buf.length >= 6 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'image/gif';
+    if (buf.length >= 12 && buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp';
+    return null;
+}
+
+async function fetchIconAsDataUri(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`icon fetch ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const mime = detectImageMime(buf);
+    if (!mime) throw new Error('icon format not recognized');
+    return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
 async function applyPersonalColor(interaction, { primaryColor, secondaryColor = null, customName = null, iconUrl = null }) {
     const member = interaction.member;
     const guild = interaction.guild;
@@ -53,9 +70,16 @@ async function applyPersonalColor(interaction, { primaryColor, secondaryColor = 
     const baseName = customName || (role ? role.name : `🎨 ${displayName}`);
 
     const editOpts = { color: primaryColor, name: baseName };
-    if (iconUrl) editOpts.icon = iconUrl;
+    let iconApplied = false;
 
-    let iconApplied = Boolean(iconUrl);
+    if (iconUrl) {
+        try {
+            editOpts.icon = await fetchIconAsDataUri(iconUrl);
+            iconApplied = true;
+        } catch (err) {
+            console.error('[Colors] icon fetch failed:', err.message);
+        }
+    }
 
     async function tryWrite() {
         if (role) {
@@ -74,7 +98,7 @@ async function applyPersonalColor(interaction, { primaryColor, secondaryColor = 
     try {
         await tryWrite();
     } catch (err) {
-        if (iconUrl) {
+        if (editOpts.icon) {
             iconApplied = false;
             delete editOpts.icon;
             await tryWrite();
