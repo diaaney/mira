@@ -19,7 +19,9 @@ require('./src/core/CommandHandler')(client);
 require('./src/events/ready.js')(client);
 require('./src/events/interactionCreate.js')(client);
 require('./src/events/messageCreate.js')(client);
+require('./src/events/messageDelete.js')(client);
 require('./src/events/voiceStateUpdate.js')(client);
 require('./src/events/guildMemberAdd.js')(client);
+require('./src/events/memberCount.js')(client);
 
 client.login(process.env.DISCORD_TOKEN);
