@@ -197,6 +197,20 @@ function isAfk(user_id) {
     return afkUsers[user_id] || null;
 }
 
+// Personal Color Roles
+function getPersonalColor(user_id) {
+    const config = readConfig();
+    if (!config.personal_colors) return null;
+    return config.personal_colors[user_id] || null;
+}
+
+function setPersonalColor(user_id, role_id) {
+    const config = readConfig();
+    if (!config.personal_colors) config.personal_colors = {};
+    config.personal_colors[user_id] = role_id;
+    writeConfig(config);
+}
+
 // Autorole Functions
 function getAutoroleConfig() {
     const config = readConfig();
@@ -280,5 +294,7 @@ module.exports = {
     getReactMessage,
     decrementReactMessage,
     getAutoroleConfig,
-    setAutoroleConfig
+    setAutoroleConfig,
+    getPersonalColor,
+    setPersonalColor
 };
