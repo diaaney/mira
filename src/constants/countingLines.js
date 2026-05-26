@@ -57,6 +57,58 @@ const BOOSTER_FAIL_LINES = [
     'clown moment from {user}. **{guess}** ≠ **{answer}**. count gets nothing'
 ];
 
+const SHIELD_SAVE_LINES = [
+    '🛡 {saver} took the hit. {fumbler} typed **{got}** but the shield said no. count holds at **{n}**',
+    '🛡 saved by {saver}\'s shield. {fumbler} would\'ve nuked **{n}** but math has a guardian today',
+    '🛡 {saver} just ate one shield to clean up {fumbler}\'s mess. count: **{n}**',
+    '🛡 thanks to {saver}, the count survives at **{n}**. {fumbler} should send a thank-you note',
+    '🛡 {fumbler} tried it. {saver}\'s shield said "not today". count locked at **{n}**',
+    '🛡 the count was about to die at **{n}**. {saver}\'s shield kept it alive. {fumbler} cope',
+    '🛡 {saver} carried this server. {fumbler} fumbled, shield absorbed, count is **{n}**',
+    '🛡 a shield from {saver} just paid for {fumbler}\'s mistake. count: **{n}**',
+    '🛡 {fumbler} embarrassed themselves. {saver} bailed them out. count **{n}**',
+    '🛡 incredible save by {saver}. {fumbler} typed **{got}** and learned nothing. count **{n}**',
+];
+
+const SABOTAGE_FUMBLE_LINES = [
+    '💣 {user} was sabotaged. wrote **{got}** like a plain number. count is gone, idiot. expected **{expected}**',
+    '💣 sabotaged {user} fell for it. you had to write math. **{got}** doesn\'t count. reset',
+    '💣 {user} forgot they were sabotaged. typing **{got}** killed the count. expected something like `{example}`',
+    '💣 imagine being sabotaged and still writing **{got}**. {user} the math was the assignment. count reset',
+    '💣 {user} was supposed to flex with math. instead typed **{got}**. count: dead',
+    '💣 sabotage worked perfectly on {user}. **{got}** is not how this works. expected `{example}`',
+    '💣 {user} took the bait. plain **{got}** = reset. should\'ve done `{example}`',
+    '💣 the sabotage was clear and {user} still wrote **{got}**. respectfully, l',
+    '💣 {user} just confirmed the sabotage. **{got}** is not math. count: gone',
+    '💣 nobody told {user} that sabotaged = use math. they wrote **{got}**. now nobody has a count',
+];
+
+const DROP_WIN_LINES = [
+    '🎁 {user} cracked `{expression}` = **{answer}** and pocketed a {emoji} **{label}**',
+    '🎁 {user} just won a {emoji} **{label}**. inventory growing',
+    '🎁 the {emoji} **{label}** belongs to {user} now. earned it with **{answer}**',
+    '🎁 {user} solved it first and the {emoji} **{label}** is theirs. nice',
+    '🎁 a {emoji} **{label}** finds a home in {user}\'s loot. `{expression}` = **{answer}**',
+    '🎁 {user} clocked **{answer}** and snagged the {emoji} **{label}**. use it well',
+    '🎁 {emoji} **{label}** → {user}. paid the toll with `{expression}` = **{answer}**',
+    '🎁 {user} earned a {emoji} **{label}**. don\'t fumble it',
+    '🎁 the count is generous to {user} today. {emoji} **{label}** acquired',
+    '🎁 {user} read `{expression}` and said **{answer}** without flinching. {emoji} **{label}** in the bag',
+];
+
+const DROP_FAIL_LINES = [
+    '🎁❌ {user} fumbled `{expression}`. answer was **{answer}**, they typed **{guess}**. item lost to the void',
+    '🎁❌ no loot for {user}. **{guess}** ≠ **{answer}**',
+    '🎁❌ {user} threw a free {emoji} **{label}** in the trash by typing **{guess}**',
+    '🎁❌ devastating. {user} typed **{guess}**. the {emoji} **{label}** evaporates',
+    '🎁❌ {user} claimed it just to mess it up. answer was **{answer}**',
+    '🎁❌ the {emoji} **{label}** would\'ve been yours {user}. you wrote **{guess}**. catastrophic',
+    '🎁❌ {user} fumbled the loot. **{answer}**, not **{guess}**. better luck next drop',
+    '🎁❌ {user}\'s math teacher is somewhere crying. expected **{answer}**, got **{guess}**',
+    '🎁❌ the item vanishes. {user} typed **{guess}** for `{expression}`. answer was **{answer}**',
+    '🎁❌ {user} fumbled. **{guess}** is not **{answer}**. no item, no respect',
+];
+
 function pickLine(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -73,6 +125,10 @@ module.exports = {
     WRONG_NUMBER_LINES,
     BOOSTER_WIN_LINES,
     BOOSTER_FAIL_LINES,
+    SHIELD_SAVE_LINES,
+    SABOTAGE_FUMBLE_LINES,
+    DROP_WIN_LINES,
+    DROP_FAIL_LINES,
     pickLine,
     fillTokens,
 };

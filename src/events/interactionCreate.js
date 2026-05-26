@@ -17,11 +17,20 @@ const {
     getCountingConfig,
     applyBoostToCount,
     clearActiveBooster,
+    getActiveDrop,
+    clearActiveDrop,
+    getUserStats,
+    addItem,
+    removeItem,
+    unprimeItem,
 } = require('../utils/storage');
 const { applyBoost } = require('../utils/boosterOps');
+const { ITEM_DEFS_BY_TYPE } = require('../utils/itemDrops');
 const {
     BOOSTER_WIN_LINES,
     BOOSTER_FAIL_LINES,
+    DROP_WIN_LINES,
+    DROP_FAIL_LINES,
     pickLine,
     fillTokens,
 } = require('../constants/countingLines');
@@ -203,6 +212,57 @@ module.exports = (client) => {
                     });
                 }
 
+                const stats = getUserStats(interaction.user.id);
+
+                // Perfect aim: instant win, no modal
+                if (stats.primed?.perfect_aim && (stats.items?.perfect_aim || 0) > 0) {
+                    unprimeItem(interaction.user.id, 'perfect_aim');
+                    removeItem(interaction.user.id, 'perfect_aim', 1);
+
+                    const counting = getCountingConfig();
+                    const fromCount = counting.current_number;
+                    const toCount = applyBoost(fromCount, active.type, active.value);
+                    applyBoostToCount(toCount);
+
+                    const winLine = fillTokens(pickLine(BOOSTER_WIN_LINES), {
+                        user: `<@${interaction.user.id}>`,
+                        expression: active.expression,
+                        answer: active.answer,
+                        from: fromCount,
+                        to: toCount,
+                        type: active.type,
+                    });
+
+                    const channel = active.channel_id
+                        ? await interaction.client.channels.fetch(active.channel_id).catch(() => null)
+                        : null;
+                    const originalMessage = (channel && active.message_id)
+                        ? await channel.messages.fetch(active.message_id).catch(() => null)
+                        : null;
+
+                    if (originalMessage) {
+                        await originalMessage.edit({
+                            content: `🎯 perfect aim — \`${active.expression}\` = **${active.answer}** (${active.type}) — count jumped to **${toCount}**`,
+                            components: [],
+                        }).catch(() => {});
+                        await originalMessage.reply({
+                            content: `🎯 ${winLine}`,
+                            allowedMentions: { parse: ['users'] },
+                        }).catch(() => {});
+                    }
+
+                    return interaction.reply({
+                        content: `🎯 perfect aim consumed — booster auto-won, count now **${toCount}**`,
+                        ephemeral: true,
+                    });
+                }
+
+                const useOracle = stats.primed?.oracle_eye && (stats.items?.oracle_eye || 0) > 0;
+                if (useOracle) {
+                    unprimeItem(interaction.user.id, 'oracle_eye');
+                    removeItem(interaction.user.id, 'oracle_eye', 1);
+                }
+
                 const labelText = `answer for ${active.expression}`;
                 const modal = new ModalBuilder()
                     .setCustomId(`booster_answer:${boosterId}`)
@@ -211,6 +271,35 @@ module.exports = (client) => {
                 const input = new TextInputBuilder()
                     .setCustomId('booster_answer_input')
                     .setLabel(labelText.length > 45 ? `solve ${active.expression}`.slice(0, 45) : labelText)
+                    .setPlaceholder(useOracle ? `🔮 oracle: answer is ${active.answer}` : 'your answer')
+                    .setStyle(TextInputStyle.Short)
+                    .setMinLength(1)
+                    .setMaxLength(10)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                return interaction.showModal(modal);
+            }
+
+            // Counting item drop claim
+            if (interaction.customId.startsWith('drop_claim:')) {
+                const dropId = interaction.customId.slice('drop_claim:'.length);
+                const active = getActiveDrop();
+                if (!active || active.id !== dropId) {
+                    return interaction.reply({
+                        content: 'this drop is already gone.',
+                        ephemeral: true,
+                    });
+                }
+
+                const labelText = `solve ${active.expression}`;
+                const modal = new ModalBuilder()
+                    .setCustomId(`drop_answer:${dropId}`)
+                    .setTitle(`claim the ${active.label}`.slice(0, 45));
+
+                const input = new TextInputBuilder()
+                    .setCustomId('drop_answer_input')
+                    .setLabel(labelText.length > 45 ? labelText.slice(0, 45) : labelText)
                     .setPlaceholder('your answer')
                     .setStyle(TextInputStyle.Short)
                     .setMinLength(1)
@@ -418,6 +507,86 @@ module.exports = (client) => {
                     if (originalMessage) {
                         await originalMessage.edit({
                             content: `❌ booster busted — answer was **${active.answer}**`,
+                            components: [],
+                        }).catch(() => {});
+                        await originalMessage.reply({
+                            content: failLine,
+                            allowedMentions: { parse: ['users'] },
+                        }).catch(() => {});
+                    }
+
+                    return interaction.reply({
+                        content: `nope. it was **${active.answer}**`,
+                        ephemeral: true,
+                    });
+                }
+            }
+
+            // Counting drop answer
+            if (interaction.customId.startsWith('drop_answer:')) {
+                const dropId = interaction.customId.slice('drop_answer:'.length);
+                const active = getActiveDrop();
+                if (!active || active.id !== dropId) {
+                    return interaction.reply({
+                        content: 'someone got there first.',
+                        ephemeral: true,
+                    });
+                }
+
+                const raw = (interaction.fields.getTextInputValue('drop_answer_input') || '').trim();
+                const guess = parseInt(raw, 10);
+                const isNumber = !isNaN(guess) && raw === guess.toString();
+                const correct = isNumber && guess === active.answer;
+
+                const channel = active.channel_id
+                    ? await interaction.client.channels.fetch(active.channel_id).catch(() => null)
+                    : interaction.channel;
+                const originalMessage = (channel && active.message_id)
+                    ? await channel.messages.fetch(active.message_id).catch(() => null)
+                    : null;
+
+                if (correct) {
+                    addItem(interaction.user.id, active.item_type, 1);
+                    clearActiveDrop();
+
+                    const winLine = fillTokens(pickLine(DROP_WIN_LINES), {
+                        user: `<@${interaction.user.id}>`,
+                        expression: active.expression,
+                        answer: active.answer,
+                        emoji: active.emoji,
+                        label: active.label,
+                    });
+
+                    if (originalMessage) {
+                        await originalMessage.edit({
+                            content: `🎁 ${active.emoji} **${active.label}** claimed by <@${interaction.user.id}>`,
+                            components: [],
+                        }).catch(() => {});
+                        await originalMessage.reply({
+                            content: winLine,
+                            allowedMentions: { parse: ['users'] },
+                        }).catch(() => {});
+                    }
+
+                    return interaction.reply({
+                        content: `🎁 you got a ${active.emoji} **${active.label}**`,
+                        ephemeral: true,
+                    });
+                } else {
+                    clearActiveDrop();
+
+                    const failLine = fillTokens(pickLine(DROP_FAIL_LINES), {
+                        user: `<@${interaction.user.id}>`,
+                        expression: active.expression,
+                        answer: active.answer,
+                        guess: isNumber ? guess : (raw || '???'),
+                        emoji: active.emoji,
+                        label: active.label,
+                    });
+
+                    if (originalMessage) {
+                        await originalMessage.edit({
+                            content: `🎁❌ the ${active.emoji} **${active.label}** vanishes — answer was **${active.answer}**`,
                             components: [],
                         }).catch(() => {});
                         await originalMessage.reply({

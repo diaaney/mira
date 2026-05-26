@@ -112,6 +112,7 @@ function applyBoost(currentCount, boosterType, value) {
 }
 
 module.exports = {
+    generateOperation,
     generateBooster,
     applyBoost,
 };

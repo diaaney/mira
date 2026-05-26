@@ -187,6 +187,184 @@ function applyBoostToCount(newCount) {
     writeConfig(config);
 }
 
+// Item drop functions
+function getActiveDrop() {
+    const config = readConfig();
+    return config.counting?.active_drop || null;
+}
+
+function setActiveDrop(drop) {
+    const config = readConfig();
+    if (!config.counting) {
+        config.counting = { channel_id: null, current_number: 0, last_user_id: null };
+    }
+    config.counting.active_drop = drop;
+    writeConfig(config);
+}
+
+function clearActiveDrop() {
+    const config = readConfig();
+    if (config.counting) {
+        config.counting.active_drop = null;
+        writeConfig(config);
+    }
+}
+
+// User stats functions
+const DEFAULT_USER_STATS = {
+    total_count: 0,
+    numbers_counted: 0,
+    items: {
+        streak_shield: 0,
+        perfect_aim: 0,
+        sabotage: 0,
+        oracle_eye: 0,
+    },
+    protecting_through: null,
+    primed: {
+        perfect_aim: false,
+        oracle_eye: false,
+    },
+    sabotaged: false,
+};
+
+function defaultStats() {
+    return JSON.parse(JSON.stringify(DEFAULT_USER_STATS));
+}
+
+function ensureUserStatsObject(config, user_id) {
+    if (!config.user_stats) config.user_stats = {};
+    if (!config.user_stats[user_id]) {
+        config.user_stats[user_id] = defaultStats();
+        return true;
+    }
+    // Migrate missing fields
+    const stats = config.user_stats[user_id];
+    let changed = false;
+    if (typeof stats.total_count !== 'number') { stats.total_count = 0; changed = true; }
+    if (typeof stats.numbers_counted !== 'number') { stats.numbers_counted = 0; changed = true; }
+    if (!stats.items) { stats.items = { ...DEFAULT_USER_STATS.items }; changed = true; }
+    for (const key of Object.keys(DEFAULT_USER_STATS.items)) {
+        if (typeof stats.items[key] !== 'number') { stats.items[key] = 0; changed = true; }
+    }
+    if (!('protecting_through' in stats)) { stats.protecting_through = null; changed = true; }
+    if (!stats.primed) { stats.primed = { ...DEFAULT_USER_STATS.primed }; changed = true; }
+    for (const key of Object.keys(DEFAULT_USER_STATS.primed)) {
+        if (typeof stats.primed[key] !== 'boolean') { stats.primed[key] = false; changed = true; }
+    }
+    if (typeof stats.sabotaged !== 'boolean') { stats.sabotaged = false; changed = true; }
+    return changed;
+}
+
+function getUserStats(user_id) {
+    const config = readConfig();
+    const created = ensureUserStatsObject(config, user_id);
+    if (created) writeConfig(config);
+    return config.user_stats[user_id];
+}
+
+function getAllUserStats() {
+    const config = readConfig();
+    return config.user_stats || {};
+}
+
+function addToTotalCount(user_id, n) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    config.user_stats[user_id].total_count += n;
+    config.user_stats[user_id].numbers_counted += 1;
+    writeConfig(config);
+}
+
+function addItem(user_id, item_type, qty = 1) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    config.user_stats[user_id].items[item_type] =
+        (config.user_stats[user_id].items[item_type] || 0) + qty;
+    writeConfig(config);
+}
+
+function removeItem(user_id, item_type, qty = 1) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    const current = config.user_stats[user_id].items[item_type] || 0;
+    if (current < qty) return false;
+    config.user_stats[user_id].items[item_type] = current - qty;
+    writeConfig(config);
+    return true;
+}
+
+function primeItem(user_id, item_type) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    config.user_stats[user_id].primed[item_type] = true;
+    writeConfig(config);
+}
+
+function unprimeItem(user_id, item_type) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    config.user_stats[user_id].primed[item_type] = false;
+    writeConfig(config);
+}
+
+function setSabotaged(target_id) {
+    const config = readConfig();
+    ensureUserStatsObject(config, target_id);
+    config.user_stats[target_id].sabotaged = true;
+    writeConfig(config);
+}
+
+function clearSabotaged(target_id) {
+    const config = readConfig();
+    ensureUserStatsObject(config, target_id);
+    config.user_stats[target_id].sabotaged = false;
+    writeConfig(config);
+}
+
+function armShield(user_id, current_number) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    const stats = config.user_stats[user_id];
+    if (stats.items.streak_shield > 0) {
+        stats.protecting_through = current_number + 25;
+        writeConfig(config);
+        return true;
+    }
+    return false;
+}
+
+function findShieldSaver(current_number) {
+    const config = readConfig();
+    if (!config.user_stats) return null;
+    const candidates = [];
+    for (const [user_id, stats] of Object.entries(config.user_stats)) {
+        if (
+            stats.protecting_through !== null &&
+            stats.protecting_through !== undefined &&
+            current_number <= stats.protecting_through &&
+            (stats.items?.streak_shield || 0) >= 1
+        ) {
+            candidates.push(user_id);
+        }
+    }
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function consumeShield(user_id) {
+    const config = readConfig();
+    ensureUserStatsObject(config, user_id);
+    const stats = config.user_stats[user_id];
+    if (stats.items.streak_shield > 0) {
+        stats.items.streak_shield -= 1;
+        stats.protecting_through = null;
+        writeConfig(config);
+        return true;
+    }
+    return false;
+}
+
 // AFK Functions
 function getAfkUsers() {
     const config = readConfig();
@@ -318,6 +496,21 @@ module.exports = {
     setActiveBooster,
     clearActiveBooster,
     applyBoostToCount,
+    getActiveDrop,
+    setActiveDrop,
+    clearActiveDrop,
+    getUserStats,
+    getAllUserStats,
+    addToTotalCount,
+    addItem,
+    removeItem,
+    primeItem,
+    unprimeItem,
+    setSabotaged,
+    clearSabotaged,
+    armShield,
+    findShieldSaver,
+    consumeShield,
     getAfkUsers,
     setAfk,
     removeAfk,

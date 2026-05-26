@@ -9,19 +9,110 @@ const {
     decrementReactMessage,
     getActiveBooster,
     setActiveBooster,
+    getActiveDrop,
+    setActiveDrop,
+    getUserStats,
+    addToTotalCount,
+    armShield,
+    findShieldSaver,
+    consumeShield,
+    clearSabotaged,
 } = require('../utils/storage');
 const embeds = require('../constants/embeds');
-const { generateBooster } = require('../utils/boosterOps');
-const { WRONG_NUMBER_LINES, pickLine, fillTokens } = require('../constants/countingLines');
+const { generateBooster, generateOperation } = require('../utils/boosterOps');
+const { generateDrop, ITEM_DEFS_BY_TYPE } = require('../utils/itemDrops');
+const { evaluateExpression, isPureInteger } = require('../utils/safeMath');
+const {
+    WRONG_NUMBER_LINES,
+    SHIELD_SAVE_LINES,
+    SABOTAGE_FUMBLE_LINES,
+    pickLine,
+    fillTokens,
+} = require('../constants/countingLines');
 
 const BOOSTER_CHANCE = 0.08;
+const DROP_CHANCE = 0.04;
+
+async function spawnBooster(message, userNumber) {
+    const booster = generateBooster(userNumber);
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`booster_claim:${booster.id}`)
+            .setLabel('claim it')
+            .setEmoji('🎯')
+            .setStyle(ButtonStyle.Primary)
+    );
+    const content = `⚡ booster spawned — solve \`${booster.expression}\` and the count gets **${booster.type}**`;
+    try {
+        const sent = await message.channel.send({ content, components: [row] });
+        booster.channel_id = sent.channelId;
+        booster.message_id = sent.id;
+        setActiveBooster(booster);
+    } catch (err) {
+        console.error('[Counting] failed to spawn booster:', err);
+    }
+}
+
+async function spawnDrop(message, userNumber) {
+    const op = generateOperation(userNumber + 1);
+    const drop = generateDrop(op);
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`drop_claim:${drop.id}`)
+            .setLabel('claim it')
+            .setEmoji('🎯')
+            .setStyle(ButtonStyle.Success)
+    );
+    const content = `🎁 a ${drop.emoji} **${drop.label}** appeared — solve \`${drop.expression}\` to claim it`;
+    try {
+        const sent = await message.channel.send({ content, components: [row] });
+        drop.channel_id = sent.channelId;
+        drop.message_id = sent.id;
+        setActiveDrop(drop);
+    } catch (err) {
+        console.error('[Counting] failed to spawn drop:', err);
+    }
+}
+
+async function rollSpawn(message, userNumber) {
+    if (getActiveBooster() || getActiveDrop()) return;
+    const r = Math.random();
+    if (r < BOOSTER_CHANCE) {
+        await spawnBooster(message, userNumber);
+    } else if (r < BOOSTER_CHANCE + DROP_CHANCE) {
+        await spawnDrop(message, userNumber);
+    }
+}
+
+async function handleShieldSave(message, fumbler, fumbledValue, expectedNumber, currentNumber, client) {
+    const saver = findShieldSaver(currentNumber);
+    if (!saver) return false;
+    consumeShield(saver);
+    let saverMention = `<@${saver}>`;
+    try {
+        const saverUser = await client.users.fetch(saver);
+        if (saverUser) saverMention = `<@${saverUser.id}>`;
+    } catch {}
+    await message.react('🛡').catch(() => {});
+    const line = fillTokens(pickLine(SHIELD_SAVE_LINES), {
+        saver: saverMention,
+        fumbler: `${fumbler}`,
+        got: fumbledValue,
+        expected: expectedNumber,
+        n: currentNumber,
+    });
+    await message.reply({
+        content: line,
+        allowedMentions: { repliedUser: false, parse: ['users'] },
+    }).catch(() => {});
+    return true;
+}
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
         // --- 🔹 AFK SYSTEM ---
-        // Check if author is AFK and remove it
         const authorAfk = isAfk(message.author.id);
         if (authorAfk) {
             removeAfk(message.author.id);
@@ -34,7 +125,6 @@ module.exports = (client) => {
             }).catch(() => {});
         }
 
-        // Check if message mentions any AFK users
         if (message.mentions.users.size > 0) {
             for (const [userId, user] of message.mentions.users) {
                 const afkData = isAfk(userId);
@@ -46,7 +136,7 @@ module.exports = (client) => {
                     await message.reply({
                         embeds: [embeds.success(`yo ${user.username} is afk rn - **${afkData.reason}** (${timeStr})`)]
                     }).catch(() => {});
-                    break; // Only show one AFK message per message
+                    break;
                 }
             }
         }
@@ -61,64 +151,94 @@ module.exports = (client) => {
         // --- 🔹 COUNTING GAME ---
         const countConfig = getCountingConfig();
         if (countConfig.channel_id === message.channel.id) {
-            const userNumber = parseInt(message.content.trim());
+            const raw = message.content.trim();
+            const senderStats = getUserStats(message.author.id);
+            const isSabotaged = senderStats.sabotaged === true;
 
-            // Check if message is a valid number
-            if (!isNaN(userNumber) && message.content.trim() === userNumber.toString()) {
-                const expectedNumber = countConfig.current_number + 1;
-                const isSameUser = countConfig.last_user_id === message.author.id;
+            // Determine if message is a count attempt
+            let userNumber = null;
+            let isMathSubmission = false;
 
-                // Silently ignore if same user tries to count again (regardless of number)
-                if (isSameUser && countConfig.current_number > 0) {
-                    return;
+            if (isPureInteger(raw)) {
+                userNumber = parseInt(raw, 10);
+            } else if (isSabotaged) {
+                const evaluated = evaluateExpression(raw);
+                if (evaluated !== null) {
+                    userNumber = evaluated;
+                    isMathSubmission = true;
                 }
+            }
 
-                // Check if it's the correct number
-                if (userNumber === expectedNumber) {
-                    // Correct number and different user (or first number)
-                    await message.react('✅');
-                    updateCount(userNumber, message.author.id);
+            if (userNumber === null) return;
 
-                    // Booster roll: only if no active booster
-                    if (!getActiveBooster() && Math.random() < BOOSTER_CHANCE) {
-                        const booster = generateBooster(userNumber);
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`booster_claim:${booster.id}`)
-                                .setLabel('claim it')
-                                .setEmoji('🎯')
-                                .setStyle(ButtonStyle.Primary)
-                        );
-                        const content = `⚡ booster spawned — solve \`${booster.expression}\` and the count gets **${booster.type}**`;
-                        try {
-                            const sent = await message.channel.send({ content, components: [row] });
-                            booster.channel_id = sent.channelId;
-                            booster.message_id = sent.id;
-                            setActiveBooster(booster);
-                        } catch (err) {
-                            console.error('[Counting] failed to spawn booster:', err);
-                        }
-                    }
-                } else {
-                    // Wrong number - reset and clear last user so they can restart
-                    await message.react('❌');
-                    const reached = countConfig.current_number;
-                    resetCount();
+            const expectedNumber = countConfig.current_number + 1;
+            const isSameUser = countConfig.last_user_id === message.author.id;
 
-                    const line = fillTokens(pickLine(WRONG_NUMBER_LINES), {
-                        user: `${message.author}`,
-                        expected: expectedNumber,
-                        got: userNumber,
-                        reached: reached,
-                    });
-
-                    await message.reply({
-                        content: line,
-                        allowedMentions: { repliedUser: false, parse: ['users'] }
-                    });
-                }
+            if (isSameUser && countConfig.current_number > 0) {
                 return;
             }
+
+            // Sabotage gate: sabotaged user submitted a plain integer (not math) → punish
+            if (isSabotaged && !isMathSubmission) {
+                clearSabotaged(message.author.id);
+
+                const saved = await handleShieldSave(
+                    message, message.author, userNumber, expectedNumber, countConfig.current_number, client
+                );
+                if (saved) return;
+
+                await message.react('❌').catch(() => {});
+                resetCount();
+
+                const half = Math.max(1, Math.floor(expectedNumber / 2));
+                const otherHalf = expectedNumber - half;
+                const line = fillTokens(pickLine(SABOTAGE_FUMBLE_LINES), {
+                    user: `${message.author}`,
+                    got: userNumber,
+                    expected: expectedNumber,
+                    example: `${half}+${otherHalf}`,
+                });
+                await message.reply({
+                    content: line,
+                    allowedMentions: { repliedUser: false, parse: ['users'] },
+                }).catch(() => {});
+                return;
+            }
+
+            if (userNumber === expectedNumber) {
+                await message.react('✅').catch(() => {});
+                if (isSabotaged) clearSabotaged(message.author.id);
+                if (isMathSubmission) await message.react('🧮').catch(() => {});
+                updateCount(userNumber, message.author.id);
+                addToTotalCount(message.author.id, userNumber);
+                armShield(message.author.id, userNumber);
+
+                await rollSpawn(message, userNumber);
+            } else {
+                if (isSabotaged) clearSabotaged(message.author.id);
+
+                const saved = await handleShieldSave(
+                    message, message.author, userNumber, expectedNumber, countConfig.current_number, client
+                );
+                if (saved) return;
+
+                await message.react('❌').catch(() => {});
+                const reached = countConfig.current_number;
+                resetCount();
+
+                const line = fillTokens(pickLine(WRONG_NUMBER_LINES), {
+                    user: `${message.author}`,
+                    expected: expectedNumber,
+                    got: userNumber,
+                    reached: reached,
+                });
+
+                await message.reply({
+                    content: line,
+                    allowedMentions: { repliedUser: false, parse: ['users'] },
+                }).catch(() => {});
+            }
+            return;
         }
 
         // --- 🔹 COMANDOS PREFIX ---
