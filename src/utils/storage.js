@@ -154,6 +154,36 @@ function resetCount() {
     const config = readConfig();
     config.counting.current_number = 0;
     config.counting.last_user_id = null;
+    config.counting.active_booster = null;
+    writeConfig(config);
+}
+
+function getActiveBooster() {
+    const config = readConfig();
+    return config.counting?.active_booster || null;
+}
+
+function setActiveBooster(booster) {
+    const config = readConfig();
+    if (!config.counting) {
+        config.counting = { channel_id: null, current_number: 0, last_user_id: null };
+    }
+    config.counting.active_booster = booster;
+    writeConfig(config);
+}
+
+function clearActiveBooster() {
+    const config = readConfig();
+    if (config.counting) {
+        config.counting.active_booster = null;
+        writeConfig(config);
+    }
+}
+
+function applyBoostToCount(newCount) {
+    const config = readConfig();
+    config.counting.current_number = newCount;
+    config.counting.active_booster = null;
     writeConfig(config);
 }
 
@@ -284,6 +314,10 @@ module.exports = {
     setCountingChannel,
     updateCount,
     resetCount,
+    getActiveBooster,
+    setActiveBooster,
+    clearActiveBooster,
+    applyBoostToCount,
     getAfkUsers,
     setAfk,
     removeAfk,

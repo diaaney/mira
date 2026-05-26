@@ -9,7 +9,22 @@ const {
 const fs = require('fs');
 const path = require('path');
 const embeds = require('../constants/embeds');
-const { getRoom, getPersonalColor, setPersonalColor } = require('../utils/storage');
+const {
+    getRoom,
+    getPersonalColor,
+    setPersonalColor,
+    getActiveBooster,
+    getCountingConfig,
+    applyBoostToCount,
+    clearActiveBooster,
+} = require('../utils/storage');
+const { applyBoost } = require('../utils/boosterOps');
+const {
+    BOOSTER_WIN_LINES,
+    BOOSTER_FAIL_LINES,
+    pickLine,
+    fillTokens,
+} = require('../constants/countingLines');
 
 const LEGACY_COLOR_ROLE_IDS = [
     '1488317627062288535',
@@ -177,6 +192,35 @@ module.exports = (client) => {
 
         // Botón
         if (interaction.isButton()) {
+            // Counting booster claim
+            if (interaction.customId.startsWith('booster_claim:')) {
+                const boosterId = interaction.customId.slice('booster_claim:'.length);
+                const active = getActiveBooster();
+                if (!active || active.id !== boosterId) {
+                    return interaction.reply({
+                        content: 'this booster is already resolved.',
+                        ephemeral: true,
+                    });
+                }
+
+                const labelText = `answer for ${active.expression}`;
+                const modal = new ModalBuilder()
+                    .setCustomId(`booster_answer:${boosterId}`)
+                    .setTitle('solve the booster');
+
+                const input = new TextInputBuilder()
+                    .setCustomId('booster_answer_input')
+                    .setLabel(labelText.length > 45 ? `solve ${active.expression}`.slice(0, 45) : labelText)
+                    .setPlaceholder('your answer')
+                    .setStyle(TextInputStyle.Short)
+                    .setMinLength(1)
+                    .setMaxLength(10)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                return interaction.showModal(modal);
+            }
+
             // Solid color picker
             if (interaction.customId === 'colors_pick_solid') {
                 const modal = new ModalBuilder()
@@ -308,6 +352,87 @@ module.exports = (client) => {
 
         // Modal submit
         if (interaction.isModalSubmit()) {
+            // Counting booster answer
+            if (interaction.customId.startsWith('booster_answer:')) {
+                const boosterId = interaction.customId.slice('booster_answer:'.length);
+                const active = getActiveBooster();
+                if (!active || active.id !== boosterId) {
+                    return interaction.reply({
+                        content: 'someone got there first.',
+                        ephemeral: true,
+                    });
+                }
+
+                const raw = (interaction.fields.getTextInputValue('booster_answer_input') || '').trim();
+                const guess = parseInt(raw, 10);
+                const isNumber = !isNaN(guess) && raw === guess.toString();
+                const correct = isNumber && guess === active.answer;
+
+                const channel = active.channel_id
+                    ? await interaction.client.channels.fetch(active.channel_id).catch(() => null)
+                    : interaction.channel;
+                const originalMessage = (channel && active.message_id)
+                    ? await channel.messages.fetch(active.message_id).catch(() => null)
+                    : null;
+
+                if (correct) {
+                    const counting = getCountingConfig();
+                    const fromCount = counting.current_number;
+                    const toCount = applyBoost(fromCount, active.type, active.value);
+                    applyBoostToCount(toCount);
+
+                    const winLine = fillTokens(pickLine(BOOSTER_WIN_LINES), {
+                        user: `<@${interaction.user.id}>`,
+                        expression: active.expression,
+                        answer: active.answer,
+                        from: fromCount,
+                        to: toCount,
+                        type: active.type,
+                    });
+
+                    if (originalMessage) {
+                        await originalMessage.edit({
+                            content: `⚡ booster resolved — \`${active.expression}\` = **${active.answer}** (${active.type}) — count jumped to **${toCount}**`,
+                            components: [],
+                        }).catch(() => {});
+                        await originalMessage.reply({
+                            content: winLine,
+                            allowedMentions: { parse: ['users'] },
+                        }).catch(() => {});
+                    }
+
+                    return interaction.reply({
+                        content: `you got it — count is now **${toCount}**`,
+                        ephemeral: true,
+                    });
+                } else {
+                    clearActiveBooster();
+
+                    const failLine = fillTokens(pickLine(BOOSTER_FAIL_LINES), {
+                        user: `<@${interaction.user.id}>`,
+                        expression: active.expression,
+                        answer: active.answer,
+                        guess: isNumber ? guess : (raw || '???'),
+                    });
+
+                    if (originalMessage) {
+                        await originalMessage.edit({
+                            content: `❌ booster busted — answer was **${active.answer}**`,
+                            components: [],
+                        }).catch(() => {});
+                        await originalMessage.reply({
+                            content: failLine,
+                            allowedMentions: { parse: ['users'] },
+                        }).catch(() => {});
+                    }
+
+                    return interaction.reply({
+                        content: `nope. it was **${active.answer}**`,
+                        ephemeral: true,
+                    });
+                }
+            }
+
             if (interaction.customId === 'colors_modal_solid' || interaction.customId === 'colors_modal_gradient') {
                 const isGradient = interaction.customId === 'colors_modal_gradient';
 

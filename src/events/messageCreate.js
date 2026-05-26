@@ -1,5 +1,20 @@
-const { getCountingConfig, updateCount, resetCount, isAfk, removeAfk, getReactMessage, decrementReactMessage } = require('../utils/storage');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const {
+    getCountingConfig,
+    updateCount,
+    resetCount,
+    isAfk,
+    removeAfk,
+    getReactMessage,
+    decrementReactMessage,
+    getActiveBooster,
+    setActiveBooster,
+} = require('../utils/storage');
 const embeds = require('../constants/embeds');
+const { generateBooster } = require('../utils/boosterOps');
+const { WRONG_NUMBER_LINES, pickLine, fillTokens } = require('../constants/countingLines');
+
+const BOOSTER_CHANCE = 0.08;
 
 module.exports = (client) => {
     client.on('messageCreate', async (message) => {
@@ -63,21 +78,43 @@ module.exports = (client) => {
                     // Correct number and different user (or first number)
                     await message.react('✅');
                     updateCount(userNumber, message.author.id);
+
+                    // Booster roll: only if no active booster
+                    if (!getActiveBooster() && Math.random() < BOOSTER_CHANCE) {
+                        const booster = generateBooster(userNumber);
+                        const row = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`booster_claim:${booster.id}`)
+                                .setLabel('claim it')
+                                .setEmoji('🎯')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+                        const content = `⚡ booster spawned — solve \`${booster.expression}\` and the count gets **${booster.type}**`;
+                        try {
+                            const sent = await message.channel.send({ content, components: [row] });
+                            booster.channel_id = sent.channelId;
+                            booster.message_id = sent.id;
+                            setActiveBooster(booster);
+                        } catch (err) {
+                            console.error('[Counting] failed to spawn booster:', err);
+                        }
+                    }
                 } else {
                     // Wrong number - reset and clear last user so they can restart
                     await message.react('❌');
-                    const wasReset = countConfig.current_number > 0;
+                    const reached = countConfig.current_number;
                     resetCount();
 
-                    let description = `Wrong number!\n\nExpected: **${expectedNumber}** | Got: **${userNumber}**`;
-                    if (wasReset) {
-                        description += `\n\nCount reset to **0**. Next number: **1**`;
-                    } else {
-                        description += `\n\nNext number: **1**`;
-                    }
+                    const line = fillTokens(pickLine(WRONG_NUMBER_LINES), {
+                        user: `${message.author}`,
+                        expected: expectedNumber,
+                        got: userNumber,
+                        reached: reached,
+                    });
 
                     await message.reply({
-                        embeds: [embeds.error(description)]
+                        content: line,
+                        allowedMentions: { repliedUser: false, parse: ['users'] }
                     });
                 }
                 return;
