@@ -52,6 +52,11 @@ module.exports = (client) => {
                 .setThumbnail(avatarURL)
                 .setFooter({ text: `users | ${member.guild.memberCount}` });
 
+            // Optional embed image (does not replace the user avatar)
+            if (welcomeConfig.image_url) {
+                welcomeEmbed.setImage(welcomeConfig.image_url);
+            }
+
             // Send welcome message with user mention
             await welcomeChannel.send({
                 content: `${member}`,

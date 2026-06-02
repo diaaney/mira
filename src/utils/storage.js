@@ -441,13 +441,19 @@ function getWelcomeConfig() {
     if (!config.welcome) {
         config.welcome = {
             channel_id: null,
-            featured_channels: []
+            featured_channels: [],
+            image_url: null
         };
         writeConfig(config);
     }
     // Migrate: ensure featured_channels exists
     if (!Array.isArray(config.welcome.featured_channels)) {
         config.welcome.featured_channels = [];
+        writeConfig(config);
+    }
+    // Migrate: ensure image_url exists
+    if (!('image_url' in config.welcome)) {
+        config.welcome.image_url = null;
         writeConfig(config);
     }
     return config.welcome;
@@ -467,6 +473,13 @@ function setWelcomeFeaturedChannels(channel_ids) {
     const config = readConfig();
     if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
     config.welcome.featured_channels = (channel_ids || []).filter(Boolean);
+    writeConfig(config);
+}
+
+function setWelcomeImage(image_url) {
+    const config = readConfig();
+    if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
+    config.welcome.image_url = image_url || null;
     writeConfig(config);
 }
 
@@ -533,6 +546,7 @@ module.exports = {
     getWelcomeConfig,
     setWelcomeChannel,
     setWelcomeFeaturedChannels,
+    setWelcomeImage,
     setReactMessage,
     getReactMessage,
     decrementReactMessage,

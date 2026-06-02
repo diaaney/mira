@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const embeds = require('../../../constants/embeds');
-const { getWelcomeConfig, setWelcomeChannel, setWelcomeFeaturedChannels } = require('../../../utils/storage');
+const { getWelcomeConfig, setWelcomeChannel, setWelcomeFeaturedChannels, setWelcomeImage } = require('../../../utils/storage');
 const { buildWelcomeDescription } = require('../../../utils/welcomeMessage');
 
 module.exports = {
@@ -36,6 +36,12 @@ module.exports = {
                         .setDescription('3rd channel to feature inside the welcome message')
                         .setRequired(false)
                 )
+                .addStringOption(option =>
+                    option
+                        .setName('image')
+                        .setDescription('image url to add to the welcome embed (does not replace the user avatar)')
+                        .setRequired(false)
+                )
         )
         .addSubcommand(subcommand =>
             subcommand
@@ -64,9 +70,19 @@ module.exports = {
                 interaction.options.getChannel('featured3'),
             ].filter(Boolean);
 
-            // Save the welcome channel + featured channels
+            // Optional image url for the welcome embed (must be a valid http(s) url)
+            const imageUrl = interaction.options.getString('image');
+            if (imageUrl && !/^https?:\/\/.+/i.test(imageUrl)) {
+                return interaction.reply({
+                    embeds: [embeds.error('that image url is not valid. it must start with `http://` or `https://`')],
+                    ephemeral: true
+                });
+            }
+
+            // Save the welcome channel + featured channels + image
             setWelcomeChannel(channel.id);
             setWelcomeFeaturedChannels(featured.map(c => c.id));
+            setWelcomeImage(imageUrl);
 
             // Defer reply to prevent interaction timeout
             await interaction.deferReply({ ephemeral: true });
@@ -77,9 +93,10 @@ module.exports = {
             const featuredLine = featured.length
                 ? `\n\nfeatured channels: ${featured.map(c => `${c}`).join('  ')}`
                 : '';
+            const imageLine = imageUrl ? `\n\nembed image set ✅` : '';
 
             await interaction.editReply({
-                embeds: [embeds.success(`welcome channel set to ${channel}! ✨${featuredLine}\n\nuse \`/welcome test\` to preview the message`)]
+                embeds: [embeds.success(`welcome channel set to ${channel}! ✨${featuredLine}${imageLine}\n\nuse \`/welcome test\` to preview the message`)]
             });
         }
 
@@ -123,6 +140,11 @@ module.exports = {
                 .setDescription(buildWelcomeDescription(interaction.guild))
                 .setThumbnail(avatarURL)
                 .setFooter({ text: `users | ${interaction.guild.memberCount}` });
+
+            // Optional embed image (does not replace the user avatar)
+            if (welcomeConfig.image_url) {
+                welcomeEmbed.setImage(welcomeConfig.image_url);
+            }
 
             // Send to welcome channel
             await welcomeChannel.send({
