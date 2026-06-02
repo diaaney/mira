@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const embeds = require('../../../constants/embeds');
-const { getWelcomeConfig, setWelcomeChannel } = require('../../../utils/storage');
+const { getWelcomeConfig, setWelcomeChannel, setWelcomeFeaturedChannels } = require('../../../utils/storage');
+const { buildWelcomeDescription } = require('../../../utils/welcomeMessage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -16,6 +17,24 @@ module.exports = {
                         .setDescription('channel where welcome messages will be sent')
                         .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true)
+                )
+                .addChannelOption(option =>
+                    option
+                        .setName('featured1')
+                        .setDescription('1st channel to feature inside the welcome message')
+                        .setRequired(false)
+                )
+                .addChannelOption(option =>
+                    option
+                        .setName('featured2')
+                        .setDescription('2nd channel to feature inside the welcome message')
+                        .setRequired(false)
+                )
+                .addChannelOption(option =>
+                    option
+                        .setName('featured3')
+                        .setDescription('3rd channel to feature inside the welcome message')
+                        .setRequired(false)
                 )
         )
         .addSubcommand(subcommand =>
@@ -38,8 +57,16 @@ module.exports = {
 
             const channel = interaction.options.getChannel('channel');
 
-            // Save the welcome channel
+            // Optional channels to feature inside the welcome message
+            const featured = [
+                interaction.options.getChannel('featured1'),
+                interaction.options.getChannel('featured2'),
+                interaction.options.getChannel('featured3'),
+            ].filter(Boolean);
+
+            // Save the welcome channel + featured channels
             setWelcomeChannel(channel.id);
+            setWelcomeFeaturedChannels(featured.map(c => c.id));
 
             // Defer reply to prevent interaction timeout
             await interaction.deferReply({ ephemeral: true });
@@ -47,8 +74,12 @@ module.exports = {
             // Animation delay (1200ms)
             await new Promise(resolve => setTimeout(resolve, 1200));
 
+            const featuredLine = featured.length
+                ? `\n\nfeatured channels: ${featured.map(c => `${c}`).join('  ')}`
+                : '';
+
             await interaction.editReply({
-                embeds: [embeds.success(`welcome channel set to ${channel}! ✨\n\nuse \`/welcome test\` to preview the message`)]
+                embeds: [embeds.success(`welcome channel set to ${channel}! ✨${featuredLine}\n\nuse \`/welcome test\` to preview the message`)]
             });
         }
 
@@ -89,7 +120,7 @@ module.exports = {
                     name: `wlc ${member.displayName} <3`,
                     iconURL: avatarURL
                 })
-                .setDescription(`wlc to meow café! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1489428117666926612>      <#1488848193591709696>`)
+                .setDescription(buildWelcomeDescription(interaction.guild))
                 .setThumbnail(avatarURL)
                 .setFooter({ text: `users | ${interaction.guild.memberCount}` });
 

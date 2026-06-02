@@ -1,6 +1,7 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const embeds = require('../constants/embeds');
 const { getWelcomeConfig, getAutoroleConfig } = require('../utils/storage');
+const { buildWelcomeDescription } = require('../utils/welcomeMessage');
 
 module.exports = (client) => {
     client.on(Events.GuildMemberAdd, async (member) => {
@@ -47,7 +48,7 @@ module.exports = (client) => {
                     name: `wlc ${member.displayName} <3`,
                     iconURL: avatarURL
                 })
-                .setDescription(`wlc to meow café! ⸜(｡˃ ᵕ ˂ )⸝♡\n\n<#1488317654501691423>      <#1489428117666926612>      <#1488848193591709696>`)
+                .setDescription(buildWelcomeDescription(member.guild))
                 .setThumbnail(avatarURL)
                 .setFooter({ text: `users | ${member.guild.memberCount}` });
 

@@ -440,8 +440,14 @@ function getWelcomeConfig() {
     const config = readConfig();
     if (!config.welcome) {
         config.welcome = {
-            channel_id: null
+            channel_id: null,
+            featured_channels: []
         };
+        writeConfig(config);
+    }
+    // Migrate: ensure featured_channels exists
+    if (!Array.isArray(config.welcome.featured_channels)) {
+        config.welcome.featured_channels = [];
         writeConfig(config);
     }
     return config.welcome;
@@ -449,9 +455,18 @@ function getWelcomeConfig() {
 
 function setWelcomeChannel(channel_id) {
     const config = readConfig();
-    config.welcome = {
-        channel_id
-    };
+    if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
+    config.welcome.channel_id = channel_id;
+    if (!Array.isArray(config.welcome.featured_channels)) {
+        config.welcome.featured_channels = [];
+    }
+    writeConfig(config);
+}
+
+function setWelcomeFeaturedChannels(channel_ids) {
+    const config = readConfig();
+    if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
+    config.welcome.featured_channels = (channel_ids || []).filter(Boolean);
     writeConfig(config);
 }
 
@@ -517,6 +532,7 @@ module.exports = {
     isAfk,
     getWelcomeConfig,
     setWelcomeChannel,
+    setWelcomeFeaturedChannels,
     setReactMessage,
     getReactMessage,
     decrementReactMessage,
