@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const embeds = require('../../../constants/embeds');
+const { getCountingConfig } = require('../../../utils/storage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -10,6 +11,13 @@ module.exports = {
             subcommand
                 .setName('setup')
                 .setDescription('send the server guide to the current channel')
+                .addIntegerOption(option =>
+                    option
+                        .setName('embeds')
+                        .setDescription('how many embeds to send (1 = guidelines only, 2 = + commands, 3 = + welcome). default: all')
+                        .setMinValue(1)
+                        .setMaxValue(3)
+                )
         ),
 
     async execute(interaction) {
@@ -24,11 +32,18 @@ module.exports = {
                 });
             }
 
+            // How many embeds to send (default: all 3)
+            const embedCount = interaction.options.getInteger('embeds') ?? 3;
+
             // Defer reply to prevent interaction timeout
             await interaction.deferReply({ ephemeral: true });
 
             // Animation delay (1200ms)
             await new Promise(resolve => setTimeout(resolve, 1200));
+
+            // Resolve the counting channel dynamically from config
+            const countingChannelId = getCountingConfig().channel_id;
+            const countingMention = countingChannelId ? `<#${countingChannelId}>` : 'the counting channel';
 
             // First embed - Guidelines and TOS
             const guidelinesEmbed = new EmbedBuilder()
@@ -48,7 +63,7 @@ module.exports = {
                     `• \`/poll\` - create a poll with up to 10 options\n\n` +
                     `**fun**\n` +
                     `• \`/colors\` - get a color role for your profile\n` +
-                    `• counting game in <#1488848193591709696>\n\n` +
+                    `• counting game in ${countingMention}\n\n` +
                     `**voicemaster**\n` +
                     `• join the generator to create your own voice channel\n` +
                     `• use the panel buttons to customize your room`
@@ -58,16 +73,17 @@ module.exports = {
             const welcomeEmbed = new EmbedBuilder()
                 .setColor(embeds.NEUTRAL_COLOR)
                 .setDescription(
-                    `welcome to meow café! we're happy to have you here ♡\n\n` +
+                    `welcome to ${interaction.guild.name}! we're happy to have you here ♡\n\n` +
                     `this is a chill place to hang out, chat, and make friends. ` +
                     `feel free to explore the channels, join voice rooms, and participate in our counting game. ` +
                     `if you need help with anything, don't hesitate to ask the staff or use our bot commands!\n\n` +
                     `grab some color roles, customize your voice channel, and most importantly - enjoy your stay! ✧˖°`
                 );
 
-            // Send all three embeds to the channel
+            // Send only the requested number of embeds (in order)
+            const allEmbeds = [guidelinesEmbed, commandsEmbed, welcomeEmbed];
             await interaction.channel.send({
-                embeds: [guidelinesEmbed, commandsEmbed, welcomeEmbed]
+                embeds: allEmbeds.slice(0, embedCount)
             });
 
             // Confirm to user
