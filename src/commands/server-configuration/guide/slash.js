@@ -42,7 +42,7 @@ module.exports = {
             await new Promise(resolve => setTimeout(resolve, 1200));
 
             // Resolve the counting channel dynamically from config
-            const countingChannelId = getCountingConfig().channel_id;
+            const countingChannelId = getCountingConfig(interaction.guild.id).channel_id;
             const countingMention = countingChannelId ? `<#${countingChannelId}>` : 'the counting channel';
 
             // First embed - Guidelines and TOS

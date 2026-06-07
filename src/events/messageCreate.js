@@ -33,7 +33,7 @@ const {
 const BOOSTER_CHANCE = 0.08;
 const DROP_CHANCE = 0.04;
 
-async function spawnBooster(message, userNumber) {
+async function spawnBooster(message, userNumber, guildId) {
     const booster = generateBooster(userNumber);
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -47,13 +47,13 @@ async function spawnBooster(message, userNumber) {
         const sent = await message.channel.send({ content, components: [row] });
         booster.channel_id = sent.channelId;
         booster.message_id = sent.id;
-        setActiveBooster(booster);
+        setActiveBooster(guildId, booster);
     } catch (err) {
         console.error('[Counting] failed to spawn booster:', err);
     }
 }
 
-async function spawnDrop(message, userNumber) {
+async function spawnDrop(message, userNumber, guildId) {
     const op = generateOperation(userNumber + 1);
     const drop = generateDrop(op);
     const row = new ActionRowBuilder().addComponents(
@@ -68,19 +68,19 @@ async function spawnDrop(message, userNumber) {
         const sent = await message.channel.send({ content, components: [row] });
         drop.channel_id = sent.channelId;
         drop.message_id = sent.id;
-        setActiveDrop(drop);
+        setActiveDrop(guildId, drop);
     } catch (err) {
         console.error('[Counting] failed to spawn drop:', err);
     }
 }
 
-async function rollSpawn(message, userNumber) {
-    if (getActiveBooster() || getActiveDrop()) return;
+async function rollSpawn(message, userNumber, guildId) {
+    if (getActiveBooster(guildId) || getActiveDrop(guildId)) return;
     const r = Math.random();
     if (r < BOOSTER_CHANCE) {
-        await spawnBooster(message, userNumber);
+        await spawnBooster(message, userNumber, guildId);
     } else if (r < BOOSTER_CHANCE + DROP_CHANCE) {
-        await spawnDrop(message, userNumber);
+        await spawnDrop(message, userNumber, guildId);
     }
 }
 
@@ -149,8 +149,9 @@ module.exports = (client) => {
         }
 
         // --- 🔹 COUNTING GAME ---
-        const countConfig = getCountingConfig();
-        if (countConfig.channel_id === message.channel.id) {
+        const guildId = message.guild?.id;
+        const countConfig = guildId ? getCountingConfig(guildId) : null;
+        if (countConfig && countConfig.channel_id === message.channel.id) {
             const raw = message.content.trim();
             const senderStats = getUserStats(message.author.id);
             const isSabotaged = senderStats.sabotaged === true;
@@ -188,7 +189,7 @@ module.exports = (client) => {
                 if (saved) return;
 
                 await message.react('❌').catch(() => {});
-                resetCount();
+                resetCount(guildId);
 
                 const half = Math.max(1, Math.floor(expectedNumber / 2));
                 const otherHalf = expectedNumber - half;
@@ -209,11 +210,11 @@ module.exports = (client) => {
                 await message.react('✅').catch(() => {});
                 if (isSabotaged) clearSabotaged(message.author.id);
                 if (isMathSubmission) await message.react('🧮').catch(() => {});
-                updateCount(userNumber, message.author.id);
+                updateCount(guildId, userNumber, message.author.id);
                 addToTotalCount(message.author.id, userNumber);
                 armShield(message.author.id, userNumber);
 
-                await rollSpawn(message, userNumber);
+                await rollSpawn(message, userNumber, guildId);
             } else {
                 if (isSabotaged) clearSabotaged(message.author.id);
 
@@ -224,7 +225,7 @@ module.exports = (client) => {
 
                 await message.react('❌').catch(() => {});
                 const reached = countConfig.current_number;
-                resetCount();
+                resetCount(guildId);
 
                 const line = fillTokens(pickLine(WRONG_NUMBER_LINES), {
                     user: `${message.author}`,

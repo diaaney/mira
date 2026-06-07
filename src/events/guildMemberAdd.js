@@ -7,7 +7,7 @@ module.exports = (client) => {
     client.on(Events.GuildMemberAdd, async (member) => {
         // Autorole: give configured role to the new member
         try {
-            const autoroleConfig = getAutoroleConfig();
+            const autoroleConfig = getAutoroleConfig(member.guild.id);
             if (autoroleConfig.role_id && !member.user.bot) {
                 const role = await member.guild.roles.fetch(autoroleConfig.role_id).catch(() => null);
                 if (role) {
@@ -22,7 +22,7 @@ module.exports = (client) => {
 
         try {
             // Get welcome configuration
-            const welcomeConfig = getWelcomeConfig();
+            const welcomeConfig = getWelcomeConfig(member.guild.id);
 
             // If no welcome channel is configured, do nothing
             if (!welcomeConfig.channel_id) {

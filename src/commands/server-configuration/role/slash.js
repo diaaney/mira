@@ -51,7 +51,7 @@ module.exports = {
         }
 
         if (mode === 'join') {
-            setAutoroleConfig(role.id);
+            setAutoroleConfig(guild.id, role.id);
             return interaction.reply({
                 embeds: [embeds.success(`new members will now get ${role} automatically ✨`)],
                 ephemeral: true

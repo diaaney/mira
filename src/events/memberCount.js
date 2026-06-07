@@ -1,6 +1,5 @@
 const { Events } = require('discord.js');
-
-const CATEGORY_ID = '1488847019475730442';
+const { getMembercountConfig } = require('../utils/storage');
 
 function buildCategoryName(currentName, memberCount) {
     const baseName = currentName.replace(/\s+\d+$/, '');
@@ -9,7 +8,10 @@ function buildCategoryName(currentName, memberCount) {
 
 async function updateCategoryName(guild) {
     try {
-        const category = await guild.channels.fetch(CATEGORY_ID).catch(() => null);
+        const cfg = getMembercountConfig(guild.id);
+        if (!cfg || !cfg.category_id) return;
+
+        const category = await guild.channels.fetch(cfg.category_id).catch(() => null);
         if (!category) return;
 
         const newName = buildCategoryName(category.name, guild.memberCount);
@@ -31,3 +33,6 @@ module.exports = (client) => {
     client.on(Events.GuildMemberAdd, (member) => updateCategoryName(member.guild));
     client.on(Events.GuildMemberRemove, (member) => updateCategoryName(member.guild));
 };
+
+// Exposed so /membercount setup can refresh the name immediately after config.
+module.exports.updateCategoryName = updateCategoryName;

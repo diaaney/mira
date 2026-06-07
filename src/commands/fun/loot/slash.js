@@ -23,7 +23,7 @@ module.exports = {
 
         const target = interaction.options.getUser('user') || interaction.user;
         const stats = getUserStats(target.id);
-        const counting = getCountingConfig();
+        const counting = getCountingConfig(interaction.guild.id);
         const currentNumber = counting.current_number || 0;
 
         const inventoryLines = ITEM_DEFS

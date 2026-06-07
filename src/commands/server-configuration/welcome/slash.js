@@ -80,9 +80,10 @@ module.exports = {
             }
 
             // Save the welcome channel + featured channels + image
-            setWelcomeChannel(channel.id);
-            setWelcomeFeaturedChannels(featured.map(c => c.id));
-            setWelcomeImage(imageUrl);
+            const guildId = interaction.guild.id;
+            setWelcomeChannel(guildId, channel.id);
+            setWelcomeFeaturedChannels(guildId, featured.map(c => c.id));
+            setWelcomeImage(guildId, imageUrl);
 
             // Defer reply to prevent interaction timeout
             await interaction.deferReply({ ephemeral: true });
@@ -102,7 +103,7 @@ module.exports = {
 
         if (subcommand === 'test') {
             // Get welcome configuration
-            const welcomeConfig = getWelcomeConfig();
+            const welcomeConfig = getWelcomeConfig(interaction.guild.id);
 
             if (!welcomeConfig.channel_id) {
                 return interaction.reply({

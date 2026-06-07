@@ -8,6 +8,7 @@ const {
 } = require('discord.js');
 const path = require('path');
 const { setVoicemasterConfig } = require('../../../../utils/storage');
+const { markup, id } = require('../../../../constants/appEmojis');
 
 const vmLogoPath = 'attachment://vm-logo.png';
 
@@ -48,35 +49,35 @@ module.exports = {
             .setAuthor({ name: 'VoiceMaster Interface', iconURL: guild.iconURL() })
             .setDescription(
                 `Use the buttons below to control your voice channel.\n\n**Button Usage**\n` +
-                `<:_:1387080783063289880> — \`Lock\` your channel\n` +
-                `<:_:1387080808405401691> — \`Unlock\` your channel\n` +
-                `<:_:1387080834502099058> — \`Ghost\` your channel\n` +
-                `<:_:1387080851099095261> — \`Reveal\` your channel\n` +
-                `<:_:1387080877900693676> — \`Claim\` your channel\n` +
-                `<:_:1387080900096954398> — \`Disconnect\` someone\n` +
-                `<:_:1387080931403370696> — \`Start\` an activity\n` +
-                `<:_:1387080952190074993> — \`Info\` about your channel\n` +
-                `<:_:1387080984616501329> — \`Increase\` user limit\n` +
-                `<:_:1387080964819128431> — \`Decrease\` user limit`
+                `${markup('lock')} — \`Lock\` your channel\n` +
+                `${markup('unlock')} — \`Unlock\` your channel\n` +
+                `${markup('ghost')} — \`Ghost\` your channel\n` +
+                `${markup('reveal')} — \`Reveal\` your channel\n` +
+                `${markup('claim')} — \`Claim\` your channel\n` +
+                `${markup('disconnect')} — \`Disconnect\` someone\n` +
+                `${markup('start')} — \`Start\` an activity\n` +
+                `${markup('info')} — \`Info\` about your channel\n` +
+                `${markup('increase')} — \`Increase\` user limit\n` +
+                `${markup('decrease')} — \`Decrease\` user limit`
             )
             .setColor('#3c3b40')
             .setThumbnail(vmLogoPath)
             .setFooter({ text: 'VoiceMaster by Mira' });
 
         const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('vm_lock').setEmoji('1387080783063289880').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_unlock').setEmoji('1387080808405401691').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_ghost').setEmoji('1387080834502099058').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_reveal').setEmoji('1387080851099095261').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_claim').setEmoji('1387080877900693676').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_lock').setEmoji(id('lock')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_unlock').setEmoji(id('unlock')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_ghost').setEmoji(id('ghost')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_reveal').setEmoji(id('reveal')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_claim').setEmoji(id('claim')).setStyle(ButtonStyle.Secondary),
         );
 
         const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('vm_disconnect').setEmoji('1387080900096954398').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_activity').setEmoji('1387080931403370696').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_info').setEmoji('1387080952190074993').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_increase').setEmoji('1387080984616501329').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('vm_decrease').setEmoji('1387080964819128431').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_disconnect').setEmoji(id('disconnect')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_activity').setEmoji(id('start')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_info').setEmoji(id('info')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_increase').setEmoji(id('increase')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('vm_decrease').setEmoji(id('decrease')).setStyle(ButtonStyle.Secondary),
         );
 
         await panelChannel.send({
@@ -86,7 +87,7 @@ module.exports = {
         });
 
         // Save config to JSON
-        setVoicemasterConfig(generatorChannel.id, category.id, panelChannel.id);
+        setVoicemasterConfig(guild.id, generatorChannel.id, category.id, panelChannel.id);
 
         message.reply({
             embeds: [{

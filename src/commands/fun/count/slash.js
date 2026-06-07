@@ -25,7 +25,7 @@ module.exports = {
         });
 
         // Set this channel as the counting channel
-        setCountingChannel(channel.id);
+        setCountingChannel(interaction.guild.id, channel.id);
 
         // Animation delay (1200ms)
         await new Promise(resolve => setTimeout(resolve, 1200));

@@ -3,6 +3,7 @@ const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const BACKUP_FILE = path.join(DATA_DIR, 'config.backup.json');
 const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
 
 // Ensure data directory exists
@@ -10,43 +11,108 @@ if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initialize files if they don't exist
-if (!fs.existsSync(CONFIG_FILE)) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({
-        voicemaster: {
-            generator_id: null,
-            category_id: null,
-            panel_id: null
-        },
+// ---------------------------------------------------------------------------
+// Defaults
+// ---------------------------------------------------------------------------
+function defaultGuildConfig() {
+    return {
+        voicemaster: { generator_id: null, category_id: null, panel_id: null },
         counting: {
             channel_id: null,
             current_number: 0,
-            last_user_id: null
+            last_user_id: null,
+            active_booster: null,
+            active_drop: null,
         },
-        welcome: {
-            channel_id: null
-        },
+        welcome: { channel_id: null, featured_channels: [], image_url: null },
+        autorole: { role_id: null },
+        membercount: { category_id: null },
+        personal_colors: {},
+    };
+}
+
+function defaultGlobal() {
+    return {
+        user_stats: {},
         afk_users: {},
-        react_messages: {}
-    }, null, 2));
+        react_messages: {},
+    };
+}
+
+function emptyConfig() {
+    return { guilds: {}, global: defaultGlobal() };
+}
+
+// Initialize files if they don't exist
+if (!fs.existsSync(CONFIG_FILE)) {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(emptyConfig(), null, 2));
 }
 
 if (!fs.existsSync(ROOMS_FILE)) {
     fs.writeFileSync(ROOMS_FILE, JSON.stringify([], null, 2));
 }
 
-// Read and write helpers
+// ---------------------------------------------------------------------------
+// Migration: flat single-guild config -> { guilds: { <id>: {...} }, global: {...} }
+// ---------------------------------------------------------------------------
+const HOME_MEMBERCOUNT_CATEGORY_ID = '1488847019475730442';
+
+function homeGuildId() {
+    return (process.env.GUILD_ID || '')
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean)[0] || null;
+}
+
+function isLegacyShape(config) {
+    // Legacy flat config has no `guilds` key but has top-level feature blocks.
+    return config && typeof config === 'object' && !('guilds' in config);
+}
+
+function migrateLegacy(legacy) {
+    const migrated = emptyConfig();
+
+    // Move global data out
+    migrated.global.user_stats = legacy.user_stats || {};
+    migrated.global.afk_users = legacy.afk_users || {};
+    migrated.global.react_messages = legacy.react_messages || {};
+
+    // Wrap the remaining (guild-scoped) data under the configured home guild
+    const gid = homeGuildId();
+    if (gid) {
+        const g = defaultGuildConfig();
+        if (legacy.voicemaster) g.voicemaster = { ...g.voicemaster, ...legacy.voicemaster };
+        if (legacy.counting) g.counting = { ...g.counting, ...legacy.counting };
+        if (legacy.welcome) g.welcome = { ...g.welcome, ...legacy.welcome };
+        if (legacy.autorole) g.autorole = { ...g.autorole, ...legacy.autorole };
+        if (legacy.personal_colors) g.personal_colors = legacy.personal_colors;
+        // Preserve the previously hardcoded member-count category for the home guild
+        g.membercount = { category_id: HOME_MEMBERCOUNT_CATEGORY_ID };
+        migrated.guilds[gid] = g;
+    }
+
+    return migrated;
+}
+
+// ---------------------------------------------------------------------------
+// Read / write helpers
+// ---------------------------------------------------------------------------
 function readConfig() {
     const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-    return JSON.parse(data);
+    let config = JSON.parse(data);
+
+    if (isLegacyShape(config)) {
+        // Back up the legacy file before rewriting it
+        fs.writeFileSync(BACKUP_FILE, data);
+        config = migrateLegacy(config);
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    }
+
+    return config;
 }
 
 function writeConfig(config) {
-    // Write to main file
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-
-    // Create backup for safety
-    const BACKUP_FILE = path.join(DATA_DIR, 'config.backup.json');
     fs.writeFileSync(BACKUP_FILE, JSON.stringify(config, null, 2));
 }
 
@@ -59,30 +125,70 @@ function writeRooms(rooms) {
     fs.writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2));
 }
 
-// VoiceMaster Config Functions
-function getVoicemasterConfig() {
-    const config = readConfig();
-    return config.voicemaster;
+// ---------------------------------------------------------------------------
+// Guild / global accessors
+// ---------------------------------------------------------------------------
+// Ensures config.guilds[guildId] exists and has every default sub-key.
+// Returns { guild, changed }.
+function ensureGuild(config, guildId) {
+    if (!config.guilds) config.guilds = {};
+    let changed = false;
+
+    if (!config.guilds[guildId]) {
+        config.guilds[guildId] = defaultGuildConfig();
+        return { guild: config.guilds[guildId], changed: true };
+    }
+
+    const g = config.guilds[guildId];
+    const d = defaultGuildConfig();
+    for (const key of Object.keys(d)) {
+        if (g[key] === undefined || g[key] === null) { g[key] = d[key]; changed = true; }
+    }
+    // Backfill nested fields added over time
+    if (!('active_booster' in g.counting)) { g.counting.active_booster = null; changed = true; }
+    if (!('active_drop' in g.counting)) { g.counting.active_drop = null; changed = true; }
+    if (!Array.isArray(g.welcome.featured_channels)) { g.welcome.featured_channels = []; changed = true; }
+    if (!('image_url' in g.welcome)) { g.welcome.image_url = null; changed = true; }
+
+    return { guild: g, changed };
 }
 
-function setVoicemasterConfig(generator_id, category_id, panel_id) {
+function ensureGlobal(config) {
+    if (!config.global) { config.global = defaultGlobal(); return { global: config.global, changed: true }; }
+    let changed = false;
+    if (!config.global.user_stats) { config.global.user_stats = {}; changed = true; }
+    if (!config.global.afk_users) { config.global.afk_users = {}; changed = true; }
+    if (!config.global.react_messages) { config.global.react_messages = {}; changed = true; }
+    return { global: config.global, changed };
+}
+
+// ---------------------------------------------------------------------------
+// VoiceMaster Config Functions
+// ---------------------------------------------------------------------------
+function getVoicemasterConfig(guildId) {
     const config = readConfig();
-    config.voicemaster = {
-        generator_id,
-        category_id,
-        panel_id
-    };
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.voicemaster;
+}
+
+function setVoicemasterConfig(guildId, generator_id, category_id, panel_id) {
+    const config = readConfig();
+    const { guild } = ensureGuild(config, guildId);
+    guild.voicemaster = { generator_id, category_id, panel_id };
     writeConfig(config);
 }
 
-// Active Rooms Functions
+// ---------------------------------------------------------------------------
+// Active Rooms Functions (keyed by globally-unique channel id, no guild scope)
+// ---------------------------------------------------------------------------
 function createRoom(channel_id, owner_id) {
     const rooms = readRooms();
     rooms.push({
         channel_id,
         owner_id,
         created_at: new Date().toISOString(),
-        claimed_at: null
+        claimed_at: null,
     });
     writeRooms(rooms);
 }
@@ -119,98 +225,100 @@ function getAllRooms() {
     return readRooms();
 }
 
-// Counting Functions
-function getCountingConfig() {
+// ---------------------------------------------------------------------------
+// Counting Functions (per-guild game state)
+// ---------------------------------------------------------------------------
+function getCountingConfig(guildId) {
     const config = readConfig();
-    if (!config.counting) {
-        config.counting = {
-            channel_id: null,
-            current_number: 0,
-            last_user_id: null
-        };
-        writeConfig(config);
-    }
-    return config.counting;
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.counting;
 }
 
-function setCountingChannel(channel_id) {
+function setCountingChannel(guildId, channel_id) {
     const config = readConfig();
-    config.counting = {
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting = {
         channel_id,
         current_number: 0,
-        last_user_id: null
+        last_user_id: null,
+        active_booster: null,
+        active_drop: null,
     };
     writeConfig(config);
 }
 
-function updateCount(new_number, user_id) {
+function updateCount(guildId, new_number, user_id) {
     const config = readConfig();
-    config.counting.current_number = new_number;
-    config.counting.last_user_id = user_id;
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.current_number = new_number;
+    guild.counting.last_user_id = user_id;
     writeConfig(config);
 }
 
-function resetCount() {
+function resetCount(guildId) {
     const config = readConfig();
-    config.counting.current_number = 0;
-    config.counting.last_user_id = null;
-    config.counting.active_booster = null;
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.current_number = 0;
+    guild.counting.last_user_id = null;
+    guild.counting.active_booster = null;
     writeConfig(config);
 }
 
-function getActiveBooster() {
+function getActiveBooster(guildId) {
     const config = readConfig();
-    return config.counting?.active_booster || null;
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.counting.active_booster || null;
 }
 
-function setActiveBooster(booster) {
+function setActiveBooster(guildId, booster) {
     const config = readConfig();
-    if (!config.counting) {
-        config.counting = { channel_id: null, current_number: 0, last_user_id: null };
-    }
-    config.counting.active_booster = booster;
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.active_booster = booster;
     writeConfig(config);
 }
 
-function clearActiveBooster() {
+function clearActiveBooster(guildId) {
     const config = readConfig();
-    if (config.counting) {
-        config.counting.active_booster = null;
-        writeConfig(config);
-    }
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.active_booster = null;
+    writeConfig(config);
 }
 
-function applyBoostToCount(newCount) {
+function applyBoostToCount(guildId, newCount) {
     const config = readConfig();
-    config.counting.current_number = newCount;
-    config.counting.active_booster = null;
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.current_number = newCount;
+    guild.counting.active_booster = null;
     writeConfig(config);
 }
 
 // Item drop functions
-function getActiveDrop() {
+function getActiveDrop(guildId) {
     const config = readConfig();
-    return config.counting?.active_drop || null;
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.counting.active_drop || null;
 }
 
-function setActiveDrop(drop) {
+function setActiveDrop(guildId, drop) {
     const config = readConfig();
-    if (!config.counting) {
-        config.counting = { channel_id: null, current_number: 0, last_user_id: null };
-    }
-    config.counting.active_drop = drop;
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.active_drop = drop;
     writeConfig(config);
 }
 
-function clearActiveDrop() {
+function clearActiveDrop(guildId) {
     const config = readConfig();
-    if (config.counting) {
-        config.counting.active_drop = null;
-        writeConfig(config);
-    }
+    const { guild } = ensureGuild(config, guildId);
+    guild.counting.active_drop = null;
+    writeConfig(config);
 }
 
-// User stats functions
+// ---------------------------------------------------------------------------
+// User stats functions (GLOBAL — inventory + leaderboard span all guilds)
+// ---------------------------------------------------------------------------
 const DEFAULT_USER_STATS = {
     total_count: 0,
     numbers_counted: 0,
@@ -233,13 +341,13 @@ function defaultStats() {
 }
 
 function ensureUserStatsObject(config, user_id) {
-    if (!config.user_stats) config.user_stats = {};
-    if (!config.user_stats[user_id]) {
-        config.user_stats[user_id] = defaultStats();
+    const { global } = ensureGlobal(config);
+    if (!global.user_stats[user_id]) {
+        global.user_stats[user_id] = defaultStats();
         return true;
     }
     // Migrate missing fields
-    const stats = config.user_stats[user_id];
+    const stats = global.user_stats[user_id];
     let changed = false;
     if (typeof stats.total_count !== 'number') { stats.total_count = 0; changed = true; }
     if (typeof stats.numbers_counted !== 'number') { stats.numbers_counted = 0; changed = true; }
@@ -260,36 +368,38 @@ function getUserStats(user_id) {
     const config = readConfig();
     const created = ensureUserStatsObject(config, user_id);
     if (created) writeConfig(config);
-    return config.user_stats[user_id];
+    return config.global.user_stats[user_id];
 }
 
 function getAllUserStats() {
     const config = readConfig();
-    return config.user_stats || {};
+    const { changed } = ensureGlobal(config);
+    if (changed) writeConfig(config);
+    return config.global.user_stats || {};
 }
 
 function addToTotalCount(user_id, n) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    config.user_stats[user_id].total_count += n;
-    config.user_stats[user_id].numbers_counted += 1;
+    config.global.user_stats[user_id].total_count += n;
+    config.global.user_stats[user_id].numbers_counted += 1;
     writeConfig(config);
 }
 
 function addItem(user_id, item_type, qty = 1) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    config.user_stats[user_id].items[item_type] =
-        (config.user_stats[user_id].items[item_type] || 0) + qty;
+    config.global.user_stats[user_id].items[item_type] =
+        (config.global.user_stats[user_id].items[item_type] || 0) + qty;
     writeConfig(config);
 }
 
 function removeItem(user_id, item_type, qty = 1) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    const current = config.user_stats[user_id].items[item_type] || 0;
+    const current = config.global.user_stats[user_id].items[item_type] || 0;
     if (current < qty) return false;
-    config.user_stats[user_id].items[item_type] = current - qty;
+    config.global.user_stats[user_id].items[item_type] = current - qty;
     writeConfig(config);
     return true;
 }
@@ -297,35 +407,35 @@ function removeItem(user_id, item_type, qty = 1) {
 function primeItem(user_id, item_type) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    config.user_stats[user_id].primed[item_type] = true;
+    config.global.user_stats[user_id].primed[item_type] = true;
     writeConfig(config);
 }
 
 function unprimeItem(user_id, item_type) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    config.user_stats[user_id].primed[item_type] = false;
+    config.global.user_stats[user_id].primed[item_type] = false;
     writeConfig(config);
 }
 
 function setSabotaged(target_id) {
     const config = readConfig();
     ensureUserStatsObject(config, target_id);
-    config.user_stats[target_id].sabotaged = true;
+    config.global.user_stats[target_id].sabotaged = true;
     writeConfig(config);
 }
 
 function clearSabotaged(target_id) {
     const config = readConfig();
     ensureUserStatsObject(config, target_id);
-    config.user_stats[target_id].sabotaged = false;
+    config.global.user_stats[target_id].sabotaged = false;
     writeConfig(config);
 }
 
 function armShield(user_id, current_number) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    const stats = config.user_stats[user_id];
+    const stats = config.global.user_stats[user_id];
     if (stats.items.streak_shield > 0) {
         stats.protecting_through = current_number + 25;
         writeConfig(config);
@@ -336,9 +446,9 @@ function armShield(user_id, current_number) {
 
 function findShieldSaver(current_number) {
     const config = readConfig();
-    if (!config.user_stats) return null;
+    const { global } = ensureGlobal(config);
     const candidates = [];
-    for (const [user_id, stats] of Object.entries(config.user_stats)) {
+    for (const [user_id, stats] of Object.entries(global.user_stats)) {
         if (
             stats.protecting_through !== null &&
             stats.protecting_through !== undefined &&
@@ -355,7 +465,7 @@ function findShieldSaver(current_number) {
 function consumeShield(user_id) {
     const config = readConfig();
     ensureUserStatsObject(config, user_id);
-    const stats = config.user_stats[user_id];
+    const stats = config.global.user_stats[user_id];
     if (stats.items.streak_shield > 0) {
         stats.items.streak_shield -= 1;
         stats.protecting_through = null;
@@ -365,35 +475,31 @@ function consumeShield(user_id) {
     return false;
 }
 
-// AFK Functions
+// ---------------------------------------------------------------------------
+// AFK Functions (GLOBAL)
+// ---------------------------------------------------------------------------
 function getAfkUsers() {
     const config = readConfig();
-    if (!config.afk_users) {
-        config.afk_users = {};
-        writeConfig(config);
-    }
-    return config.afk_users;
+    const { changed } = ensureGlobal(config);
+    if (changed) writeConfig(config);
+    return config.global.afk_users;
 }
 
 function setAfk(user_id, reason) {
     const config = readConfig();
-    if (!config.afk_users) {
-        config.afk_users = {};
-    }
-    config.afk_users[user_id] = {
+    ensureGlobal(config);
+    config.global.afk_users[user_id] = {
         reason: reason || 'no reason provided',
-        since: Date.now()
+        since: Date.now(),
     };
     writeConfig(config);
 }
 
 function removeAfk(user_id) {
     const config = readConfig();
-    if (!config.afk_users) {
-        config.afk_users = {};
-    }
-    if (config.afk_users[user_id]) {
-        delete config.afk_users[user_id];
+    ensureGlobal(config);
+    if (config.global.afk_users[user_id]) {
+        delete config.global.afk_users[user_id];
         writeConfig(config);
         return true;
     }
@@ -405,104 +511,112 @@ function isAfk(user_id) {
     return afkUsers[user_id] || null;
 }
 
-// Personal Color Roles
-function getPersonalColor(user_id) {
+// ---------------------------------------------------------------------------
+// Personal Color Roles (per-guild)
+// ---------------------------------------------------------------------------
+function getPersonalColor(guildId, user_id) {
     const config = readConfig();
-    if (!config.personal_colors) return null;
-    return config.personal_colors[user_id] || null;
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.personal_colors[user_id] || null;
 }
 
-function setPersonalColor(user_id, role_id) {
+function setPersonalColor(guildId, user_id, role_id) {
     const config = readConfig();
-    if (!config.personal_colors) config.personal_colors = {};
-    config.personal_colors[user_id] = role_id;
+    const { guild } = ensureGuild(config, guildId);
+    guild.personal_colors[user_id] = role_id;
     writeConfig(config);
 }
 
-// Autorole Functions
-function getAutoroleConfig() {
+// ---------------------------------------------------------------------------
+// Autorole Functions (per-guild)
+// ---------------------------------------------------------------------------
+function getAutoroleConfig(guildId) {
     const config = readConfig();
-    if (!config.autorole) {
-        config.autorole = { role_id: null };
-        writeConfig(config);
-    }
-    return config.autorole;
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.autorole;
 }
 
-function setAutoroleConfig(role_id) {
+function setAutoroleConfig(guildId, role_id) {
     const config = readConfig();
-    config.autorole = { role_id };
+    const { guild } = ensureGuild(config, guildId);
+    guild.autorole = { role_id };
     writeConfig(config);
 }
 
-// Welcome Functions
-function getWelcomeConfig() {
+// ---------------------------------------------------------------------------
+// Welcome Functions (per-guild)
+// ---------------------------------------------------------------------------
+function getWelcomeConfig(guildId) {
     const config = readConfig();
-    if (!config.welcome) {
-        config.welcome = {
-            channel_id: null,
-            featured_channels: [],
-            image_url: null
-        };
-        writeConfig(config);
-    }
-    // Migrate: ensure featured_channels exists
-    if (!Array.isArray(config.welcome.featured_channels)) {
-        config.welcome.featured_channels = [];
-        writeConfig(config);
-    }
-    // Migrate: ensure image_url exists
-    if (!('image_url' in config.welcome)) {
-        config.welcome.image_url = null;
-        writeConfig(config);
-    }
-    return config.welcome;
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.welcome;
 }
 
-function setWelcomeChannel(channel_id) {
+function setWelcomeChannel(guildId, channel_id) {
     const config = readConfig();
-    if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
-    config.welcome.channel_id = channel_id;
-    if (!Array.isArray(config.welcome.featured_channels)) {
-        config.welcome.featured_channels = [];
-    }
+    const { guild } = ensureGuild(config, guildId);
+    guild.welcome.channel_id = channel_id;
     writeConfig(config);
 }
 
-function setWelcomeFeaturedChannels(channel_ids) {
+function setWelcomeFeaturedChannels(guildId, channel_ids) {
     const config = readConfig();
-    if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
-    config.welcome.featured_channels = (channel_ids || []).filter(Boolean);
+    const { guild } = ensureGuild(config, guildId);
+    guild.welcome.featured_channels = (channel_ids || []).filter(Boolean);
     writeConfig(config);
 }
 
-function setWelcomeImage(image_url) {
+function setWelcomeImage(guildId, image_url) {
     const config = readConfig();
-    if (!config.welcome) config.welcome = { channel_id: null, featured_channels: [] };
-    config.welcome.image_url = image_url || null;
+    const { guild } = ensureGuild(config, guildId);
+    guild.welcome.image_url = image_url || null;
     writeConfig(config);
 }
 
-// React Messages Functions
+// ---------------------------------------------------------------------------
+// Member Count Functions (per-guild)
+// ---------------------------------------------------------------------------
+function getMembercountConfig(guildId) {
+    const config = readConfig();
+    const { guild, changed } = ensureGuild(config, guildId);
+    if (changed) writeConfig(config);
+    return guild.membercount;
+}
+
+function setMembercountCategory(guildId, category_id) {
+    const config = readConfig();
+    const { guild } = ensureGuild(config, guildId);
+    guild.membercount = { category_id };
+    writeConfig(config);
+}
+
+// ---------------------------------------------------------------------------
+// React Messages Functions (GLOBAL)
+// ---------------------------------------------------------------------------
 function setReactMessage(user_id, emoji, count) {
     const config = readConfig();
-    if (!config.react_messages) config.react_messages = {};
-    config.react_messages[user_id] = { emoji, remaining: count };
+    ensureGlobal(config);
+    config.global.react_messages[user_id] = { emoji, remaining: count };
     writeConfig(config);
 }
 
 function getReactMessage(user_id) {
     const config = readConfig();
-    if (!config.react_messages) return null;
-    return config.react_messages[user_id] || null;
+    const { changed } = ensureGlobal(config);
+    if (changed) writeConfig(config);
+    return config.global.react_messages[user_id] || null;
 }
 
 function decrementReactMessage(user_id) {
     const config = readConfig();
-    if (!config.react_messages || !config.react_messages[user_id]) return;
-    config.react_messages[user_id].remaining -= 1;
-    if (config.react_messages[user_id].remaining <= 0) {
-        delete config.react_messages[user_id];
+    ensureGlobal(config);
+    if (!config.global.react_messages[user_id]) return;
+    config.global.react_messages[user_id].remaining -= 1;
+    if (config.global.react_messages[user_id].remaining <= 0) {
+        delete config.global.react_messages[user_id];
     }
     writeConfig(config);
 }
@@ -547,11 +661,17 @@ module.exports = {
     setWelcomeChannel,
     setWelcomeFeaturedChannels,
     setWelcomeImage,
+    getMembercountConfig,
+    setMembercountCategory,
     setReactMessage,
     getReactMessage,
     decrementReactMessage,
     getAutoroleConfig,
     setAutoroleConfig,
     getPersonalColor,
-    setPersonalColor
+    setPersonalColor,
+    // exposed for tests
+    _isLegacyShape: isLegacyShape,
+    _migrateLegacy: migrateLegacy,
+    _defaultGuildConfig: defaultGuildConfig,
 };

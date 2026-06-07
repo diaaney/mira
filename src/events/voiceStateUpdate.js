@@ -9,7 +9,7 @@ module.exports = (client) => {
         const guild = newState.guild;
         const joinedChannel = newState.channel;
 
-        const guildConfig = getVoicemasterConfig();
+        const guildConfig = getVoicemasterConfig(guild.id);
         if (!guildConfig || !guildConfig.generator_id) return;
 
         const generatorId = guildConfig.generator_id;

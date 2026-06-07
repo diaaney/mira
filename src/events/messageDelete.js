@@ -31,8 +31,9 @@ module.exports = (client) => {
     client.on('messageDelete', async (message) => {
         if (message.partial) return;
         if (!message.author || message.author.bot) return;
+        if (!message.guild) return;
 
-        const countConfig = getCountingConfig();
+        const countConfig = getCountingConfig(message.guild.id);
         if (countConfig.channel_id !== message.channel.id) return;
 
         const content = message.content?.trim();

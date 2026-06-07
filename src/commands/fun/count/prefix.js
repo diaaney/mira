@@ -18,7 +18,7 @@ module.exports = {
         const channel = message.channel;
 
         // Set this channel as the counting channel
-        setCountingChannel(channel.id);
+        setCountingChannel(message.guild.id, channel.id);
 
         message.reply({
             embeds: [{

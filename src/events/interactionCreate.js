@@ -35,18 +35,6 @@ const {
     fillTokens,
 } = require('../constants/countingLines');
 
-const LEGACY_COLOR_ROLE_IDS = [
-    '1488317627062288535',
-    '1488317627913994261',
-    '1488317628568305825',
-    '1488317629801431211',
-    '1488317630703079617',
-    '1488317631458050088',
-];
-
-const COLOR_POSITION_UPPER_BOUND = '1488317626315837440';
-const COLOR_POSITION_LOWER_BOUND = '1488317632246710432';
-
 function parseHexColor(input) {
     if (!input) return null;
     let hex = input.trim().replace(/^#/, '');
@@ -85,9 +73,7 @@ async function applyPersonalColor(interaction, { primaryColor, secondaryColor = 
     const member = interaction.member;
     const guild = interaction.guild;
 
-    await member.roles.remove(LEGACY_COLOR_ROLE_IDS).catch(() => {});
-
-    let roleId = getPersonalColor(member.id);
+    let roleId = getPersonalColor(guild.id, member.id);
     let role = roleId ? await guild.roles.fetch(roleId).catch(() => null) : null;
 
     const displayName = member.displayName || member.user.username;
@@ -115,7 +101,7 @@ async function applyPersonalColor(interaction, { primaryColor, secondaryColor = 
                 mentionable: false,
                 reason: `personal color role for ${member.user.tag}`
             });
-            setPersonalColor(member.id, role.id);
+            setPersonalColor(guild.id, member.id, role.id);
         }
     }
 
@@ -155,12 +141,10 @@ async function applyPersonalColor(interaction, { primaryColor, secondaryColor = 
         }
     }
 
-    const upperBound = await guild.roles.fetch(COLOR_POSITION_UPPER_BOUND).catch(() => null);
-    const lowerBound = await guild.roles.fetch(COLOR_POSITION_LOWER_BOUND).catch(() => null);
-    if (upperBound) {
-        let target = upperBound.position - 1;
-        if (lowerBound && target <= lowerBound.position) target = lowerBound.position + 1;
-        await role.setPosition(target).catch(() => {});
+    // Position the color role just below the bot's highest role so the color shows.
+    const botTop = guild.members.me?.roles?.highest;
+    if (botTop && botTop.position > 1) {
+        await role.setPosition(botTop.position - 1).catch(() => {});
     }
 
     if (!member.roles.cache.has(role.id)) {
@@ -204,7 +188,8 @@ module.exports = (client) => {
             // Counting booster claim
             if (interaction.customId.startsWith('booster_claim:')) {
                 const boosterId = interaction.customId.slice('booster_claim:'.length);
-                const active = getActiveBooster();
+                const guildId = interaction.guildId;
+                const active = getActiveBooster(guildId);
                 if (!active || active.id !== boosterId) {
                     return interaction.reply({
                         content: 'this booster is already resolved.',
@@ -219,10 +204,10 @@ module.exports = (client) => {
                     unprimeItem(interaction.user.id, 'perfect_aim');
                     removeItem(interaction.user.id, 'perfect_aim', 1);
 
-                    const counting = getCountingConfig();
+                    const counting = getCountingConfig(guildId);
                     const fromCount = counting.current_number;
                     const toCount = applyBoost(fromCount, active.type, active.value);
-                    applyBoostToCount(toCount);
+                    applyBoostToCount(guildId, toCount);
 
                     const winLine = fillTokens(pickLine(BOOSTER_WIN_LINES), {
                         user: `<@${interaction.user.id}>`,
@@ -284,7 +269,8 @@ module.exports = (client) => {
             // Counting item drop claim
             if (interaction.customId.startsWith('drop_claim:')) {
                 const dropId = interaction.customId.slice('drop_claim:'.length);
-                const active = getActiveDrop();
+                const guildId = interaction.guildId;
+                const active = getActiveDrop(guildId);
                 if (!active || active.id !== dropId) {
                     return interaction.reply({
                         content: 'this drop is already gone.',
@@ -444,7 +430,8 @@ module.exports = (client) => {
             // Counting booster answer
             if (interaction.customId.startsWith('booster_answer:')) {
                 const boosterId = interaction.customId.slice('booster_answer:'.length);
-                const active = getActiveBooster();
+                const guildId = interaction.guildId;
+                const active = getActiveBooster(guildId);
                 if (!active || active.id !== boosterId) {
                     return interaction.reply({
                         content: 'someone got there first.',
@@ -465,10 +452,10 @@ module.exports = (client) => {
                     : null;
 
                 if (correct) {
-                    const counting = getCountingConfig();
+                    const counting = getCountingConfig(guildId);
                     const fromCount = counting.current_number;
                     const toCount = applyBoost(fromCount, active.type, active.value);
-                    applyBoostToCount(toCount);
+                    applyBoostToCount(guildId, toCount);
 
                     const winLine = fillTokens(pickLine(BOOSTER_WIN_LINES), {
                         user: `<@${interaction.user.id}>`,
@@ -495,7 +482,7 @@ module.exports = (client) => {
                         ephemeral: true,
                     });
                 } else {
-                    clearActiveBooster();
+                    clearActiveBooster(guildId);
 
                     const failLine = fillTokens(pickLine(BOOSTER_FAIL_LINES), {
                         user: `<@${interaction.user.id}>`,
@@ -525,7 +512,8 @@ module.exports = (client) => {
             // Counting drop answer
             if (interaction.customId.startsWith('drop_answer:')) {
                 const dropId = interaction.customId.slice('drop_answer:'.length);
-                const active = getActiveDrop();
+                const guildId = interaction.guildId;
+                const active = getActiveDrop(guildId);
                 if (!active || active.id !== dropId) {
                     return interaction.reply({
                         content: 'someone got there first.',
@@ -547,7 +535,7 @@ module.exports = (client) => {
 
                 if (correct) {
                     addItem(interaction.user.id, active.item_type, 1);
-                    clearActiveDrop();
+                    clearActiveDrop(guildId);
 
                     const winLine = fillTokens(pickLine(DROP_WIN_LINES), {
                         user: `<@${interaction.user.id}>`,
@@ -573,7 +561,7 @@ module.exports = (client) => {
                         ephemeral: true,
                     });
                 } else {
-                    clearActiveDrop();
+                    clearActiveDrop(guildId);
 
                     const failLine = fillTokens(pickLine(DROP_FAIL_LINES), {
                         user: `<@${interaction.user.id}>`,
